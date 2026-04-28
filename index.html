@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maruyama Park Golf</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a4a1a 0%, #2d6e2d 50%, #1a4a1a 100%);
+      min-height: 100vh;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white; border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      max-width: 500px; width: 100%; overflow: hidden; margin: auto;
+    }
+
+    /* STATUS BAR */
+    .status-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 6px 16px; font-size: 11px; font-weight: 600; transition: all 0.3s;
+    }
+    .status-bar.online  { background: #e8f5e9; color: #2d6e2d; }
+    .status-bar.offline { background: #fff3e0; color: #e67e22; }
+    .status-bar.loading { background: #e3f2fd; color: #2980b9; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .online  .status-dot { background: #2d6e2d; }
+    .offline .status-dot { background: #e67e22; animation: pulse 1.2s infinite; }
+    .loading .status-dot { background: #2980b9; animation: pulse 0.8s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, #1a4a1a, #2d6e2d);
+      color: white; text-align: center; padding: 22px 20px 18px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; margin-bottom: 3px; }
+    .header p  { font-size: 12px; opacity: 0.8; }
+
+    /* NAV */
+    .nav { display: flex; border-bottom: 2px solid #eee; }
+    .nav-btn {
+      flex: 1; padding: 12px; border: none; background: white;
+      font-size: 13px; font-weight: 600; color: #999; cursor: pointer;
+      transition: all 0.2s; border-bottom: 3px solid transparent; margin-bottom: -2px;
+    }
+    .nav-btn.active { color: #1a4a1a; border-bottom-color: #2d6e2d; }
+    .nav-btn:hover:not(.active) { color: #555; background: #f9f9f9; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* SETUP SCREEN */
+    .setup-screen { padding: 40px 28px; text-align: center; }
+    .setup-screen h2 { font-size: 18px; color: #1a4a1a; margin-bottom: 12px; }
+    .setup-screen p  { font-size: 14px; color: #666; line-height: 1.8; }
+    .setup-screen code {
+      display: inline-block; background: #f4f4f4;
+      padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #c0392b;
+    }
+
+    /* SECTION */
+    .section { padding: 18px 22px; border-bottom: 1px solid #eee; }
+    .section-label {
+      font-size: 12px; font-weight: 700; color: #888;
+      letter-spacing: 0.5px; margin-bottom: 10px; text-transform: uppercase;
+    }
+
+    /* PLAYER CHIPS */
+    .player-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .chip {
+      padding: 7px 16px; border-radius: 20px; border: 2px solid #ddd;
+      background: white; font-size: 14px; font-weight: 600; color: #555;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .chip.selected { background: #2d6e2d; border-color: #2d6e2d; color: white; }
+    .chip.add-chip { border-style: dashed; color: #2d6e2d; border-color: #2d6e2d; }
+    .chip.add-chip:hover { background: #f0f9f0; }
+    .add-player-row { display: none; gap: 8px; margin-top: 10px; }
+    .add-player-row.show { display: flex; }
+    .add-player-row input {
+      flex: 1; padding: 8px 12px;
+      border: 2px solid #2d6e2d; border-radius: 8px; font-size: 14px;
+    }
+    .add-player-row input:focus { outline: none; }
+    .add-player-row button {
+      padding: 8px 14px; border: none; border-radius: 8px;
+      background: #2d6e2d; color: white; font-weight: 700; cursor: pointer; font-size: 13px;
+    }
+
+    /* SCORECARD */
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    thead th {
+      padding: 9px 6px; text-align: center; font-size: 11px; font-weight: 700;
+      color: #888; background: #f7f7f7; border-bottom: 2px solid #ddd; letter-spacing: 0.5px;
+    }
+    tbody tr { border-bottom: 1px solid #eee; }
+    tbody tr:hover { background: #fafff9; }
+    tbody td { padding: 11px 6px; text-align: center; color: #333; font-weight: 500; }
+    tbody td:first-child { font-weight: 800; color: #1a4a1a; font-size: 16px; }
+    .par-cell { color: #2d6e2d; font-weight: 700; }
+    .score-input {
+      width: 58px; padding: 7px 4px; border: 2px solid #ddd; border-radius: 8px;
+      font-size: 16px; font-weight: 700; text-align: center; transition: all 0.2s;
+    }
+    .score-input:focus { outline: none; border-color: #2d6e2d; background: #f0f9f0; }
+    .diff-cell { font-weight: 700; }
+    .diff-under { color: #e74c3c; }
+    .diff-over  { color: #2980b9; }
+    .diff-even  { color: #888; }
+    tfoot td {
+      padding: 12px 6px; text-align: center; font-weight: 800; font-size: 14px;
+      color: #1a4a1a; background: #f0f9f0; border-top: 2px solid #2d6e2d;
+    }
+
+    /* RESULT */
+    .result-box {
+      margin: 0 22px 18px; padding: 14px; border-radius: 12px;
+      background: #f5f5f5; text-align: center;
+    }
+    .result-label { font-size: 11px; color: #aaa; font-weight: 700; letter-spacing: 0.5px; }
+    .result-value { font-size: 30px; font-weight: 800; color: #1a4a1a; margin: 2px 0; }
+    .result-sub   { font-size: 14px; color: #555; font-weight: 600; }
+
+    .btn-row { display: flex; gap: 10px; padding: 0 22px 20px; }
+    .btn {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary  { background: #2d6e2d; color: white; }
+    .btn-primary:hover:not(:disabled) { background: #1a4a1a; }
+    .btn-secondary { background: #eee; color: #555; }
+    .btn-secondary:hover:not(:disabled) { background: #ddd; }
+
+    .date-now { text-align: center; font-size: 11px; color: #ccc; padding-bottom: 14px; }
+
+    /* HISTORY */
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 22px; border-bottom: 1px solid #eee;
+    }
+    .history-header span { font-size: 13px; color: #888; }
+    .clear-btn { font-size: 12px; color: #e74c3c; background: none; border: none; cursor: pointer; font-weight: 600; }
+    .filter-row { display: flex; gap: 8px; padding: 10px 22px 0; flex-wrap: wrap; }
+    .filter-chip {
+      padding: 5px 12px; border-radius: 16px; border: 2px solid #ddd; background: white;
+      font-size: 12px; font-weight: 600; color: #888; cursor: pointer; transition: all 0.2s;
+    }
+    .filter-chip.active { background: #2d6e2d; border-color: #2d6e2d; color: white; }
+    .history-list { padding: 12px 22px 22px; }
+    .history-empty  { text-align: center; color: #bbb; font-size: 14px; padding: 40px 0; }
+    .history-loading{ text-align: center; color: #aaa; font-size: 14px; padding: 30px 0; }
+
+    .record-card {
+      border: 1px solid #eee; border-radius: 12px;
+      margin-bottom: 12px; overflow: hidden; transition: box-shadow 0.2s;
+    }
+    .record-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .record-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; background: #fafafa; border-bottom: 1px solid #eee; cursor: pointer;
+    }
+    .record-player { font-size: 15px; font-weight: 700; color: #1a4a1a; }
+    .record-date   { font-size: 12px; color: #aaa; }
+    .record-score-badge {
+      background: #2d6e2d; color: white;
+      font-size: 13px; font-weight: 800; padding: 4px 12px; border-radius: 20px;
+    }
+    .record-score-badge.over  { background: #2980b9; }
+    .record-score-badge.under { background: #e74c3c; }
+    .record-detail { padding: 10px 14px; }
+    .record-holes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    .hole-badge {
+      text-align: center; min-width: 52px;
+      background: #f5f5f5; border-radius: 8px; padding: 6px 8px;
+    }
+    .hole-badge .hb-label { font-size: 10px; color: #aaa; font-weight: 600; }
+    .hole-badge .hb-score { font-size: 18px; font-weight: 800; color: #333; }
+    .hole-badge .hb-diff  { font-size: 11px; font-weight: 700; }
+    .record-grade { text-align: center; margin-top: 8px; font-size: 14px; color: #555; }
+    .record-actions { display: flex; border-top: 1px solid #f0f0f0; }
+    .record-action-btn {
+      flex: 1; padding: 9px; border: none; background: none;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .record-action-btn.edit  { color: #2d6e2d; }
+    .record-action-btn.edit:hover { background: #f0f9f0; }
+    .record-action-btn.del   { color: #ccc; border-left: 1px solid #f0f0f0; }
+    .record-action-btn.del:hover  { color: #e74c3c; background: #fff5f5; }
+
+    /* EDIT MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); z-index: 100;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white; border-radius: 16px; width: 100%; max-width: 420px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.4); overflow: hidden; animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn { from{transform:scale(0.93);opacity:0} to{transform:scale(1);opacity:1} }
+    .modal-header {
+      background: linear-gradient(135deg, #1a4a1a, #2d6e2d);
+      color: white; padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 700; }
+    .modal-close { background:none; border:none; color:white; font-size:22px; cursor:pointer; opacity:0.8; }
+    .modal-close:hover { opacity:1; }
+    .modal-body { padding: 18px 20px; }
+    .modal-field { margin-bottom: 16px; }
+    .modal-field label {
+      display: block; font-size: 11px; font-weight: 700; color: #888;
+      letter-spacing: 0.5px; margin-bottom: 6px; text-transform: uppercase;
+    }
+    .modal-player-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .modal-player-chips .chip { font-size: 13px; padding: 5px 13px; }
+    .modal-score-table { width: 100%; border-collapse: collapse; }
+    .modal-score-table th {
+      padding: 7px 6px; font-size: 11px; font-weight: 700; color: #888;
+      background: #f7f7f7; text-align: center; border-bottom: 2px solid #ddd;
+    }
+    .modal-score-table td { padding: 9px 6px; text-align: center; border-bottom: 1px solid #eee; }
+    .modal-score-table td:first-child { font-weight: 800; color: #1a4a1a; }
+    .modal-score-input {
+      width: 62px; padding: 7px 4px; border: 2px solid #ddd; border-radius: 8px;
+      font-size: 16px; font-weight: 700; text-align: center; transition: all 0.2s;
+    }
+    .modal-score-input:focus { outline: none; border-color: #2d6e2d; background: #f0f9f0; }
+    .modal-date-input {
+      width: 100%; padding: 9px 12px; border: 2px solid #ddd; border-radius: 8px;
+      font-size: 14px; transition: border-color 0.2s;
+    }
+    .modal-date-input:focus { outline: none; border-color: #2d6e2d; }
+    .modal-footer { display: flex; gap: 10px; padding: 0 20px 20px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>⛳ Maruyama Park Golf</h1>
+    <p>3ホール スコアカード</p>
+  </div>
+
+  <div class="status-bar loading" id="statusBar">
+    <div class="status-dot"></div>
+    <span id="statusText">接続中...</span>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('score')">📝 スコア入力</button>
+    <button class="nav-btn" onclick="showPage('history')">📊 記録一覧</button>
+  </div>
+
+  <!-- SETUP SCREEN -->
+  <div class="page active" id="page-setup">
+    <div class="setup-screen">
+      <h2>⚙️ Firebase の設定が必要です</h2>
+      <p>
+        Cursor でこのファイルを開き、<br>
+        上部の <code>FIREBASE_CONFIG</code> に<br>
+        Firebase コンソールの設定値を貼り付けてください。<br><br>
+        設定方法は同梱の <strong>setup.txt</strong> をご確認ください。
+      </p>
+    </div>
+  </div>
+
+  <!-- SCORE PAGE -->
+  <div class="page" id="page-score">
+    <div class="section">
+      <div class="section-label">プレイヤー</div>
+      <div class="player-chips" id="playerChips"></div>
+      <div class="add-player-row" id="addPlayerRow">
+        <input type="text" id="newPlayerInput" placeholder="新しい名前" maxlength="12"
+               onkeydown="if(event.key==='Enter') confirmAddPlayer()" />
+        <button onclick="confirmAddPlayer()">追加</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">スコア</div>
+      <table>
+        <thead><tr><th>HOLE</th><th>PAR</th><th>SCORE</th><th>+/−</th></tr></thead>
+        <tbody id="scoreBody"></tbody>
+        <tfoot>
+          <tr>
+            <td>合計</td><td id="totalPar">11</td>
+            <td id="totalScore">−</td><td id="totalDiff">−</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="result-box">
+      <div class="result-label">RESULT</div>
+      <div class="result-value" id="resultValue">−</div>
+      <div class="result-sub"  id="resultSub"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="resetScores()">リセット</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveScore()">保存する</button>
+    </div>
+    <div class="date-now" id="dateNow"></div>
+  </div>
+
+  <!-- HISTORY PAGE -->
+  <div class="page" id="page-history">
+    <div class="history-header">
+      <span id="recordCount">0件の記録</span>
+      <button class="clear-btn" onclick="clearAllRecords()">すべて削除</button>
+    </div>
+    <div class="filter-row" id="filterRow"></div>
+    <div class="history-list" id="historyList">
+      <div class="history-loading">読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div class="modal-overlay" id="editOverlay" onclick="overlayClick(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>✏️ 記録を編集</h2>
+        <button class="modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-field">
+          <label>プレイヤー</label>
+          <div class="modal-player-chips" id="modalPlayerChips"></div>
+        </div>
+        <div class="modal-field">
+          <label>スコア</label>
+          <table class="modal-score-table">
+            <thead><tr><th>HOLE</th><th>PAR</th><th>SCORE</th></tr></thead>
+            <tbody id="modalScoreBody"></tbody>
+          </table>
+        </div>
+        <div class="modal-field">
+          <label>日時</label>
+          <input type="datetime-local" class="modal-date-input" id="modalDate" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeEditModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveEdit()">保存する</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+// ============================================================
+//  Firebase の設定
+//  Firebase コンソール → プロジェクトの設定 → マイアプリ
+//  の「firebaseConfig」をコピーしてここに貼り付けてください
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+// ============================================================
+
+const IS_CONFIGURED = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
+
+const HOLES = [
+  { hole: 1, par: 4 },
+  { hole: 2, par: 3 },
+  { hole: 3, par: 4 },
+];
+const TOTAL_PAR = HOLES.reduce((s, h) => s + h.par, 0);
+
+let db = null;
+let players = ['パパ', '佳奈'];
+let selectedPlayer = players[0];
+let addingPlayer = false;
+let filterPlayer = 'ALL';
+let allRecords = [];
+let unsubRecords = null;
+let editingId = null;
+let modalSelectedPlayer = null;
+
+/* ===== STATUS ===== */
+function setStatus(state, text) {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+
+/* ===== FIREBASE ===== */
+function initFirebase() {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+}
+
+const playersDoc  = () => db.collection('config').doc('players');
+const recordsCol  = () => db.collection('records');
+
+async function loadPlayers() {
+  const snap = await playersDoc().get();
+  if (snap.exists && Array.isArray(snap.data().names)) return snap.data().names;
+  const defaults = ['パパ', '佳奈'];
+  await playersDoc().set({ names: defaults });
+  return defaults;
+}
+
+async function persistPlayers(arr) {
+  await playersDoc().set({ names: arr });
+}
+
+function subscribeRecords() {
+  if (unsubRecords) unsubRecords();
+  unsubRecords = recordsCol()
+    .orderBy('date', 'desc')
+    .onSnapshot(
+      snap => {
+        allRecords = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStatus('online', 'オンライン（リアルタイム同期中）');
+        renderHistoryCards();
+      },
+      () => setStatus('offline', 'オフライン（記録は後で同期されます）')
+    );
+}
+
+async function addRecord(rec)         { await recordsCol().add(rec); }
+async function updateRecord(id, data) { await recordsCol().doc(id).update(data); }
+async function removeRecord(id)       { await recordsCol().doc(id).delete(); }
+
+/* ===== INIT ===== */
+async function init() {
+  if (!IS_CONFIGURED) {
+    setStatus('offline', '未設定');
+    showPage('setup');
+    return;
+  }
+  setStatus('loading', '接続中...');
+  initFirebase();
+  buildScoreTable();
+  updateDateNow();
+  setInterval(updateDateNow, 60000);
+
+  try {
+    players = await loadPlayers();
+    selectedPlayer = players[0] || null;
+    renderPlayerChips();
+    showPage('score');
+    setStatus('online', 'オンライン');
+  } catch {
+    setStatus('offline', '接続に失敗しました');
+  }
+}
+
+function updateDateNow() {
+  document.getElementById('dateNow').textContent =
+    new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+}
+
+/* ===== NAVIGATION ===== */
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const idx = { score: 0, history: 1 }[name];
+  if (idx !== undefined) document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if (name === 'history') subscribeRecords();
+}
+
+/* ===== PLAYERS ===== */
+function renderPlayerChips() {
+  const wrap = document.getElementById('playerChips');
+  wrap.innerHTML = '';
+  players.forEach(name => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (name === selectedPlayer ? ' selected' : '');
+    chip.textContent = name;
+    chip.onclick = () => { selectedPlayer = name; renderPlayerChips(); };
+    wrap.appendChild(chip);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'chip add-chip';
+  addBtn.textContent = '＋ 追加';
+  addBtn.onclick = toggleAddPlayer;
+  wrap.appendChild(addBtn);
+}
+
+function toggleAddPlayer() {
+  addingPlayer = !addingPlayer;
+  const row = document.getElementById('addPlayerRow');
+  row.classList.toggle('show', addingPlayer);
+  if (addingPlayer) {
+    document.getElementById('newPlayerInput').value = '';
+    document.getElementById('newPlayerInput').focus();
+  }
+}
+
+async function confirmAddPlayer() {
+  const input = document.getElementById('newPlayerInput');
+  const name = input.value.trim();
+  if (!name) return;
+  if (players.includes(name)) { alert('同じ名前がすでに存在します。'); return; }
+  players.push(name);
+  await persistPlayers(players);
+  selectedPlayer = name;
+  addingPlayer = false;
+  document.getElementById('addPlayerRow').classList.remove('show');
+  renderPlayerChips();
+}
+
+/* ===== SCORE TABLE ===== */
+function buildScoreTable() {
+  const tbody = document.getElementById('scoreBody');
+  tbody.innerHTML = '';
+  HOLES.forEach(h => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h.hole}</td>
+      <td class="par-cell">${h.par}</td>
+      <td><input class="score-input" type="number" min="1" max="20"
+           id="score${h.hole}" placeholder="−" oninput="updateTotals()"></td>
+      <td class="diff-cell" id="diff${h.hole}">−</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateTotals() {
+  let total = 0, filled = 0;
+  HOLES.forEach(h => {
+    const v = parseInt(document.getElementById(`score${h.hole}`).value);
+    const cell = document.getElementById(`diff${h.hole}`);
+    if (!isNaN(v) && v > 0) {
+      const d = v - h.par;
+      cell.textContent = d === 0 ? 'E' : (d > 0 ? `+${d}` : `${d}`);
+      cell.className = 'diff-cell ' + diffClass(d);
+      total += v; filled++;
+    } else { cell.textContent = '−'; cell.className = 'diff-cell'; }
+  });
+  const ts = document.getElementById('totalScore');
+  const td = document.getElementById('totalDiff');
+  if (filled === 0) {
+    ts.textContent = '−'; td.textContent = '−'; td.className = ''; setResult('−', '');
+  } else if (filled === HOLES.length) {
+    const d = total - TOTAL_PAR;
+    ts.textContent = total;
+    td.textContent = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+    td.className = diffClass(d);
+    setResult(total + '打', gradeText(d));
+  } else {
+    ts.textContent = total; td.textContent = '−'; td.className = '';
+    setResult(`${filled}/${HOLES.length} ホール`, `現在 ${total}打`);
+  }
+}
+
+function diffClass(d)  { return d < 0 ? 'diff-under' : d > 0 ? 'diff-over' : 'diff-even'; }
+function gradeText(d)  {
+  if (d <= -3) return '🦅 アルバトロス！';
+  if (d === -2) return '🦅 イーグル！';
+  if (d === -1) return '🐦 バーディ！';
+  if (d === 0)  return '✅ パー';
+  if (d === 1)  return 'ボギー';
+  if (d === 2)  return 'ダブルボギー';
+  if (d === 3)  return 'トリプルボギー';
+  return `+${d}`;
+}
+function setResult(val, sub) {
+  document.getElementById('resultValue').textContent = val;
+  document.getElementById('resultSub').textContent = sub;
+}
+
+/* ===== SAVE SCORE ===== */
+function resetScores() {
+  HOLES.forEach(h => {
+    document.getElementById(`score${h.hole}`).value = '';
+    const c = document.getElementById(`diff${h.hole}`);
+    c.textContent = '−'; c.className = 'diff-cell';
+  });
+  document.getElementById('totalScore').textContent = '−';
+  document.getElementById('totalDiff').textContent = '−';
+  document.getElementById('totalDiff').className = '';
+  setResult('−', '');
+}
+
+async function saveScore() {
+  if (!selectedPlayer) { alert('プレイヤーを選択してください。'); return; }
+  const scores = HOLES.map(h => parseInt(document.getElementById(`score${h.hole}`).value));
+  if (scores.some(s => isNaN(s) || s < 1)) { alert('全ホールのスコアを入力してください。'); return; }
+  const total = scores.reduce((a, b) => a + b, 0);
+  const diff  = total - TOTAL_PAR;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '保存中...';
+  try {
+    await addRecord({ player: selectedPlayer, date: new Date().toISOString(), scores, total, diff, grade: gradeText(diff) });
+    alert(`✅ 保存しました！\n${selectedPlayer}さん：${total}打（${diff >= 0 ? '+' : ''}${diff}）`);
+    resetScores();
+  } catch { alert('保存に失敗しました。通信を確認してください。'); }
+  finally { btn.disabled = false; btn.textContent = '保存する'; }
+}
+
+/* ===== HISTORY ===== */
+function renderFilterChips() {
+  const allPlayers = [...new Set(allRecords.map(r => r.player))];
+  const filterRow = document.getElementById('filterRow');
+  filterRow.innerHTML = '';
+  ['ALL', ...allPlayers].forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip' + (p === filterPlayer ? ' active' : '');
+    btn.textContent = p === 'ALL' ? '全員' : p;
+    btn.onclick = () => { filterPlayer = p; renderHistoryCards(); };
+    filterRow.appendChild(btn);
+  });
+}
+
+function renderHistoryCards() {
+  renderFilterChips();
+  const filtered = filterPlayer === 'ALL' ? allRecords : allRecords.filter(r => r.player === filterPlayer);
+  document.getElementById('recordCount').textContent = `${filtered.length}件の記録`;
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="history-empty">まだ記録がありません</div>'; return;
+  }
+  filtered.forEach(rec => {
+    const card = document.createElement('div');
+    card.className = 'record-card';
+    const dateStr = new Date(rec.date).toLocaleDateString('ja-JP', {
+      year:'numeric', month:'short', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit'
+    });
+    const badgeClass = rec.diff < 0 ? 'under' : rec.diff > 0 ? 'over' : '';
+    const diffLabel  = rec.diff === 0 ? 'EVEN' : (rec.diff > 0 ? `+${rec.diff}` : `${rec.diff}`);
+    const holesHtml = HOLES.map((h, i) => {
+      const s = rec.scores[i]; const d = s - h.par;
+      const dl = d === 0 ? 'E' : (d > 0 ? `+${d}` : `${d}`);
+      return `<div class="hole-badge">
+        <div class="hb-label">H${h.hole} PAR${h.par}</div>
+        <div class="hb-score">${s}</div>
+        <div class="hb-diff ${diffClass(d)}">${dl}</div>
+      </div>`;
+    }).join('');
+    card.innerHTML = `
+      <div class="record-top" onclick="toggleDetail('${rec.id}')">
+        <div>
+          <div class="record-player">${rec.player}</div>
+          <div class="record-date">${dateStr}</div>
+        </div>
+        <div class="record-score-badge ${badgeClass}">${rec.total}打 ${diffLabel}</div>
+      </div>
+      <div class="record-detail" id="detail-${rec.id}" style="display:none">
+        <div class="record-holes">${holesHtml}</div>
+        <div class="record-grade">${rec.grade}</div>
+        <div class="record-actions">
+          <button class="record-action-btn edit" onclick="openEditModal('${rec.id}')">✏️ 編集</button>
+          <button class="record-action-btn del"  onclick="deleteRecord('${rec.id}')">削除</button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById('detail-' + id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function deleteRecord(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  await removeRecord(id);
+}
+
+async function clearAllRecords() {
+  const targets = filterPlayer === 'ALL' ? allRecords : allRecords.filter(r => r.player === filterPlayer);
+  const label = filterPlayer === 'ALL' ? 'すべての記録' : `${filterPlayer}さんの記録`;
+  if (!confirm(`${label}を削除しますか？`)) return;
+  await Promise.all(targets.map(r => removeRecord(r.id)));
+  filterPlayer = 'ALL';
+}
+
+/* ===== EDIT MODAL ===== */
+function openEditModal(id) {
+  const rec = allRecords.find(r => r.id === id);
+  if (!rec) return;
+  editingId = id; modalSelectedPlayer = rec.player;
+  renderModalPlayerChips();
+  const tbody = document.getElementById('modalScoreBody');
+  tbody.innerHTML = '';
+  HOLES.forEach((h, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h.hole}</td><td class="par-cell">${h.par}</td>
+      <td><input class="modal-score-input" type="number" min="1" max="20"
+           id="medit-score${h.hole}" value="${rec.scores[i]}"></td>`;
+    tbody.appendChild(tr);
+  });
+  const d = new Date(rec.date);
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('modalDate').value =
+    `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  document.getElementById('editOverlay').classList.add('open');
+}
+
+function renderModalPlayerChips() {
+  const wrap = document.getElementById('modalPlayerChips');
+  wrap.innerHTML = '';
+  players.forEach(name => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (name === modalSelectedPlayer ? ' selected' : '');
+    chip.textContent = name;
+    chip.onclick = () => { modalSelectedPlayer = name; renderModalPlayerChips(); };
+    wrap.appendChild(chip);
+  });
+}
+
+function closeEditModal() {
+  document.getElementById('editOverlay').classList.remove('open');
+  editingId = null; modalSelectedPlayer = null;
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('editOverlay')) closeEditModal();
+}
+
+async function saveEdit() {
+  if (!modalSelectedPlayer) { alert('プレイヤーを選択してください。'); return; }
+  const scores = HOLES.map(h => parseInt(document.getElementById(`medit-score${h.hole}`).value));
+  if (scores.some(s => isNaN(s) || s < 1)) { alert('全ホールのスコアを入力してください。'); return; }
+  const dateVal = document.getElementById('modalDate').value;
+  if (!dateVal) { alert('日時を入力してください。'); return; }
+  const total = scores.reduce((a, b) => a + b, 0);
+  const diff  = total - TOTAL_PAR;
+  await updateRecord(editingId, {
+    player: modalSelectedPlayer, scores, total, diff,
+    grade: gradeText(diff), date: new Date(dateVal).toISOString(),
+  });
+  closeEditModal();
+}
+
+init();
+</script>
+</body>
+</html>
