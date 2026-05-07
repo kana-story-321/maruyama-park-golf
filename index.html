@@ -237,6 +237,19 @@
     .stats-overall-card .soc-val   { font-size: 22px; font-weight: 800; color: #1a4a1a; margin: 2px 0; }
     .stats-overall-card .soc-sub   { font-size: 10px; color: #888; }
 
+    .month-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .month-chip {
+      padding: 5px 12px; border-radius: 16px; border: 2px solid #ddd;
+      background: white; font-size: 12px; font-weight: 600; color: #888;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .month-chip.active { background: #2d6e2d; border-color: #2d6e2d; color: white; }
+    .month-chip:hover:not(.active) { border-color: #2d6e2d; color: #2d6e2d; }
+    .month-stats {
+      background: white; border-radius: 8px; padding: 8px 10px;
+      border: 1px solid #e0f0e0; margin-top: 4px;
+    }
+
     /* EDIT MODAL */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
@@ -435,6 +448,7 @@ let players = ['パパ', '佳奈'];
 let selectedPlayer = players[0];
 let addingPlayer = false;
 let filterPlayer = 'ALL';
+let selectedMonth = 'ALL';
 let allRecords = [];
 let unsubRecords = null;
 let editingId = null;
@@ -659,80 +673,111 @@ async function saveScore() {
 /* ===== STATS ===== */
 function renderStats() {
   const section = document.getElementById('statsSection');
-  if (allRecords.length === 0) { section.innerHTML = ''; return; }
 
-  // ベストスコア（打数最小）
-  const best = allRecords.reduce((a, b) => a.total < b.total ? a : b);
-  const bestDateStr = new Date(best.date).toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric' });
+  // 現在のプレイヤーフィルターに合わせたベース記録
+  const base = filterPlayer === 'ALL' ? allRecords : allRecords.filter(r => r.player === filterPlayer);
+  if (base.length === 0) { section.innerHTML = ''; return; }
+
+  // ベストスコア・アベレージ
+  const best    = base.reduce((a, b) => a.total < b.total ? a : b);
+  const bestStr = new Date(best.date).toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric' });
   const bestDiff = best.diff === 0 ? 'EVEN' : (best.diff > 0 ? `+${best.diff}` : `${best.diff}`);
+  const avg = (base.reduce((s, r) => s + r.total, 0) / base.length).toFixed(1);
 
-  // 全体アベレージ
-  const overallAvg = (allRecords.reduce((s, r) => s + r.total, 0) / allRecords.length).toFixed(1);
+  // プレイヤー別（全員表示のときのみ）
+  let playerSectionHtml = '';
+  if (filterPlayer === 'ALL') {
+    const playerMap = {};
+    allRecords.forEach(r => {
+      if (!playerMap[r.player]) playerMap[r.player] = [];
+      playerMap[r.player].push(r);
+    });
+    const rows = Object.entries(playerMap).map(([name, recs]) => {
+      const pb  = recs.reduce((a, b) => a.total < b.total ? a : b);
+      const pa  = (recs.reduce((s, r) => s + r.total, 0) / recs.length).toFixed(1);
+      const pd  = pb.diff === 0 ? 'E' : (pb.diff > 0 ? `+${pb.diff}` : `${pb.diff}`);
+      return `<div class="stats-row">
+        <div class="stats-row-name">${name}</div>
+        <div class="stats-row-vals">
+          <div class="stats-row-best">ベスト ${pb.total}打 <span style="font-size:11px;color:#999">(${pd})</span></div>
+          <div class="stats-row-avg">平均 ${pa}打 ／ ${recs.length}回</div>
+        </div>
+      </div>`;
+    }).join('');
+    playerSectionHtml = `<div class="stats-card">
+      <div class="stats-card-title">👤 プレイヤー別</div>${rows}</div>`;
+  }
 
-  // プレイヤー別
-  const playerMap = {};
-  allRecords.forEach(r => {
-    if (!playerMap[r.player]) playerMap[r.player] = [];
-    playerMap[r.player].push(r);
-  });
-  const playerRowsHtml = Object.entries(playerMap).map(([name, recs]) => {
-    const pb  = recs.reduce((a, b) => a.total < b.total ? a : b);
-    const avg = (recs.reduce((s, r) => s + r.total, 0) / recs.length).toFixed(1);
-    const pd  = pb.diff === 0 ? 'E' : (pb.diff > 0 ? `+${pb.diff}` : `${pb.diff}`);
-    return `<div class="stats-row">
-      <div class="stats-row-name">${name}</div>
-      <div class="stats-row-vals">
-        <div class="stats-row-best">ベスト ${pb.total}打 <span style="font-size:11px;color:#999">(${pd})</span></div>
-        <div class="stats-row-avg">平均 ${avg}打 ／ ${recs.length}回</div>
-      </div>
-    </div>`;
-  }).join('');
-
-  // 月別
+  // 月別ボタン（allRecords から月一覧を作成）
   const monthMap = {};
   allRecords.forEach(r => {
     const d = new Date(r.date);
     const key = `${d.getFullYear()}年${d.getMonth()+1}月`;
     const sortKey = d.getFullYear() * 100 + d.getMonth();
-    if (!monthMap[key]) monthMap[key] = { recs: [], sortKey };
-    monthMap[key].recs.push(r);
+    if (!monthMap[key]) monthMap[key] = sortKey;
   });
-  const monthRowsHtml = Object.entries(monthMap)
-    .sort((a, b) => b[1].sortKey - a[1].sortKey)
-    .map(([month, { recs }]) => {
-      const mb  = recs.reduce((a, b) => a.total < b.total ? a : b);
-      const avg = (recs.reduce((s, r) => s + r.total, 0) / recs.length).toFixed(1);
-      const md  = mb.diff === 0 ? 'E' : (mb.diff > 0 ? `+${mb.diff}` : `${mb.diff}`);
-      return `<div class="stats-row">
-        <div class="stats-row-name">${month}</div>
-        <div class="stats-row-vals">
-          <div class="stats-row-best">ベスト ${mb.total}打 <span style="font-size:11px;color:#999">(${mb.player} ${md})</span></div>
-          <div class="stats-row-avg">平均 ${avg}打 ／ ${recs.length}回</div>
+  const sortedMonths = Object.entries(monthMap).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+
+  const monthBtns = sortedMonths.map(m =>
+    `<button class="month-chip${selectedMonth === m ? ' active' : ''}" onclick="selectMonth('${m}')">${m}</button>`
+  ).join('');
+
+  // 選択中の月の統計
+  let monthStatsHtml = '';
+  if (selectedMonth !== 'ALL') {
+    const mRecs = base.filter(r => {
+      const d = new Date(r.date);
+      return `${d.getFullYear()}年${d.getMonth()+1}月` === selectedMonth;
+    });
+    if (mRecs.length > 0) {
+      const mb   = mRecs.reduce((a, b) => a.total < b.total ? a : b);
+      const mavg = (mRecs.reduce((s, r) => s + r.total, 0) / mRecs.length).toFixed(1);
+      const md   = mb.diff === 0 ? 'E' : (mb.diff > 0 ? `+${mb.diff}` : `${mb.diff}`);
+      const who  = filterPlayer === 'ALL' ? ` ${mb.player}` : '';
+      monthStatsHtml = `<div class="month-stats">
+        <div class="stats-row">
+          <div class="stats-row-name">ベスト</div>
+          <div class="stats-row-vals">
+            <div class="stats-row-best">${mb.total}打 <span style="font-size:11px;color:#999">(${md}${who})</span></div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stats-row-name">アベレージ</div>
+          <div class="stats-row-vals">
+            <div class="stats-row-best">${mavg}打 <span style="font-size:11px;color:#999">／ ${mRecs.length}回</span></div>
+          </div>
         </div>
       </div>`;
-    }).join('');
+    } else {
+      monthStatsHtml = `<div style="font-size:12px;color:#bbb;text-align:center;padding:8px 0">この月の記録はありません</div>`;
+    }
+  }
 
+  const label = filterPlayer === 'ALL' ? '全体' : `${filterPlayer}さん`;
   section.innerHTML = `
     <div class="stats-best">
-      <div class="sb-title">🏆 過去最高スコア</div>
+      <div class="sb-title">🏆 ${label}の最高スコア</div>
       <div class="sb-score">${best.total}打 <span class="sb-diff">${bestDiff}</span></div>
-      <div class="sb-sub">${best.player} ／ ${bestDateStr}</div>
+      <div class="sb-sub">${filterPlayer === 'ALL' ? best.player + ' ／ ' : ''}${bestStr}</div>
     </div>
     <div class="stats-overall">
       <div class="stats-overall-card">
-        <div class="soc-label">📊 全体アベレージ</div>
-        <div class="soc-val">${overallAvg}打</div>
-        <div class="soc-sub">${allRecords.length}回の記録より</div>
+        <div class="soc-label">📊 ${label}のアベレージ</div>
+        <div class="soc-val">${avg}打</div>
+        <div class="soc-sub">${base.length}回の記録より</div>
       </div>
     </div>
-    <div class="stats-card">
-      <div class="stats-card-title">👤 プレイヤー別</div>
-      ${playerRowsHtml}
-    </div>
+    ${playerSectionHtml}
     <div class="stats-card">
       <div class="stats-card-title">📅 月別</div>
-      ${monthRowsHtml}
+      <div class="month-chips">${monthBtns}</div>
+      ${monthStatsHtml}
     </div>`;
+}
+
+function selectMonth(month) {
+  selectedMonth = selectedMonth === month ? 'ALL' : month;
+  renderHistoryCards();
 }
 
 /* ===== HISTORY ===== */
@@ -744,15 +789,26 @@ function renderFilterChips() {
     const btn = document.createElement('button');
     btn.className = 'filter-chip' + (p === filterPlayer ? ' active' : '');
     btn.textContent = p === 'ALL' ? '全員' : p;
-    btn.onclick = () => { filterPlayer = p; renderHistoryCards(); };
+    btn.onclick = () => { filterPlayer = p; selectedMonth = 'ALL'; renderHistoryCards(); };
     filterRow.appendChild(btn);
   });
+}
+
+function getFilteredRecords() {
+  let recs = filterPlayer === 'ALL' ? allRecords : allRecords.filter(r => r.player === filterPlayer);
+  if (selectedMonth !== 'ALL') {
+    recs = recs.filter(r => {
+      const d = new Date(r.date);
+      return `${d.getFullYear()}年${d.getMonth()+1}月` === selectedMonth;
+    });
+  }
+  return recs;
 }
 
 function renderHistoryCards() {
   renderStats();
   renderFilterChips();
-  const filtered = filterPlayer === 'ALL' ? allRecords : allRecords.filter(r => r.player === filterPlayer);
+  const filtered = getFilteredRecords();
   document.getElementById('recordCount').textContent = `${filtered.length}件の記録`;
   const list = document.getElementById('historyList');
   list.innerHTML = '';
