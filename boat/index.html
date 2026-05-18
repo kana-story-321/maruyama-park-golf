@@ -345,6 +345,23 @@
 
     .hidden { display: none !important; }
 
+    /* COLLAPSIBLE */
+    .collapsible-header {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .collapsible-header .chevron {
+      font-size: 12px;
+      color: #607d8b;
+      transition: transform 0.2s;
+    }
+    .collapsible.open .collapsible-header .chevron {
+      transform: rotate(180deg);
+    }
+
     /* MODAL POPUP */
     .modal {
       position: fixed;
@@ -530,6 +547,7 @@
 
       <div class="submit-area">
         <button id="submit" class="submit-btn">📝 記録する</button>
+        <button id="open-sheet-main" class="submit-btn" style="background:linear-gradient(135deg,#2e7d32,#43a047);margin-top:10px;box-shadow:0 4px 12px rgba(46,125,50,0.25);">📊 スプレッドシートを開く</button>
       </div>
     </section>
 
@@ -556,7 +574,19 @@
       </div>
 
       <div class="card">
-        <h3>セットアップ手順</h3>
+        <h3>スプレッドシートを開く</h3>
+        <div class="field">
+          <label>スプレッドシートURL</label>
+          <input type="text" id="sheet-url" placeholder="https://docs.google.com/spreadsheets/d/.../edit">
+          <div class="help-text">スプレッドシートのURLを貼り付けると、「📊 スプレッドシートを開く」ボタンで直接開けます。</div>
+        </div>
+        <button id="save-sheet" class="save-btn">URLを保存</button>
+        <button id="open-sheet-settings" class="save-btn" style="background:#2e7d32;margin-top:8px;">📊 スプレッドシートを開く</button>
+      </div>
+
+      <div class="card collapsible" id="setup-card">
+        <h3 class="collapsible-header">セットアップ手順 <span class="chevron">▼</span></h3>
+        <div class="collapsible-body hidden">
         <div class="setup-steps">
           <ol>
             <li>記録用の <a href="https://sheets.new" target="_blank">Google スプレッドシート</a> を新規作成（必ずシート画面から開始）</li>
@@ -576,6 +606,7 @@
           <button id="copy-gas" class="copy-btn">📋 GASコードをコピー</button>
         </div>
         <pre id="gas-code" class="gas-code"></pre>
+        </div><!-- /.collapsible-body -->
       </div>
 
       <div class="card" style="background:#fff8e1;">
@@ -648,7 +679,7 @@ function doPost(e) {
 
     // 接続テスト (書き込みなし)
     if (data.test === true) {
-      return jsonResp({status:'ok', test:true, spreadsheet: ss.getName()});
+      return jsonResp({status:'ok', test:true, spreadsheet: ss.getName(), spreadsheetUrl: ss.getUrl()});
     }
 
     let sheet = ss.getSheetByName(SHEET_NAME);
@@ -677,7 +708,7 @@ function doPost(e) {
       data.emergencyContact || '', data.returnTime || '', data.recorder || ''
     ]);
 
-    return jsonResp({status:'ok', spreadsheet: ss.getName()});
+    return jsonResp({status:'ok', spreadsheet: ss.getName(), spreadsheetUrl: ss.getUrl()});
   } catch (err) {
     return jsonResp({status:'error', message: String(err && err.stack || err)});
   } finally {
@@ -695,7 +726,8 @@ function doGet() {
   return jsonResp({
     status:'ok',
     message:'Boat Inspection Endpoint OK',
-    spreadsheet: ss ? ss.getName() : null
+    spreadsheet: ss ? ss.getName() : null,
+    spreadsheetUrl: ss ? ss.getUrl() : null
   });
 }`;
 
@@ -703,13 +735,24 @@ function doGet() {
     const KEY_NAMES = 'boat.names';
     const KEY_GAS = 'boat.gasUrl';
     const KEY_LAST = 'boat.lastRecord';
+    const KEY_SHEET = 'boat.sheetUrl';
 
     let state = {
       names: loadJSON(KEY_NAMES) || DEFAULT_NAMES.slice(),
       gasUrl: localStorage.getItem(KEY_GAS) || '',
+      sheetUrl: localStorage.getItem(KEY_SHEET) || '',
       last: loadJSON(KEY_LAST) || null,
       decision: '可'
     };
+
+    function saveSheetUrl(url){
+      const v = (url || '').trim();
+      state.sheetUrl = v;
+      if (v) localStorage.setItem(KEY_SHEET, v);
+      else localStorage.removeItem(KEY_SHEET);
+      const inp = document.getElementById('sheet-url');
+      if (inp && inp.value !== v) inp.value = v;
+    }
 
     function loadJSON(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
     function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
@@ -747,15 +790,49 @@ function doGet() {
     document.querySelector('#modal .modal-backdrop').addEventListener('click', hideModal);
 
     // ============== NAV ==============
-    document.querySelectorAll('.nav button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const view = btn.dataset.view;
-        document.getElementById('view-form').classList.toggle('hidden', view !== 'form');
-        document.getElementById('view-settings').classList.toggle('hidden', view !== 'settings');
-        window.scrollTo(0,0);
+    function switchView(view){
+      document.querySelectorAll('.nav button').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === view);
       });
+      document.getElementById('view-form').classList.toggle('hidden', view !== 'form');
+      document.getElementById('view-settings').classList.toggle('hidden', view !== 'settings');
+      window.scrollTo(0,0);
+    }
+    document.querySelectorAll('.nav button').forEach(btn => {
+      btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    // ============== COLLAPSIBLE ==============
+    document.querySelectorAll('.collapsible-header').forEach(h => {
+      h.addEventListener('click', () => {
+        const card = h.closest('.collapsible');
+        const body = card.querySelector('.collapsible-body');
+        const open = body.classList.toggle('hidden');
+        card.classList.toggle('open', !open);
+      });
+    });
+
+    // ============== OPEN SPREADSHEET ==============
+    function openSpreadsheet(){
+      if (state.sheetUrl) {
+        window.open(state.sheetUrl, '_blank');
+      } else {
+        showModal('warning', 'スプレッドシートURL未登録',
+          '「設定」タブの「スプレッドシートを開く」欄にURLを登録してください。\n\n※ GASコードを更新して再デプロイすると、次回送信時に自動で登録されます。');
+        // モーダルを閉じた後に自動的に設定タブへ
+        const okBtn = document.querySelector('#modal .modal-ok');
+        const once = () => { switchView('settings'); okBtn.removeEventListener('click', once); };
+        okBtn.addEventListener('click', once);
+      }
+    }
+    document.getElementById('open-sheet-main').addEventListener('click', openSpreadsheet);
+    document.getElementById('open-sheet-settings').addEventListener('click', openSpreadsheet);
+
+    // ============== SAVE SHEET URL ==============
+    document.getElementById('save-sheet').addEventListener('click', () => {
+      const v = document.getElementById('sheet-url').value.trim();
+      saveSheetUrl(v);
+      showStatus(v ? 'スプレッドシートURLを保存しました' : 'URLをクリアしました', 'success', 2500);
     });
 
     // ============== INSPECT ITEMS RENDER ==============
@@ -911,7 +988,8 @@ function doGet() {
         let json = null;
         try { json = JSON.parse(text); } catch(_) {}
         if (json && json.status === 'ok') {
-          showStatus(`✓ 接続OK${json.spreadsheet ? ' / シート: ' + json.spreadsheet : ''}`, 'success', 7000);
+          if (json.spreadsheetUrl) saveSheetUrl(json.spreadsheetUrl);
+          showStatus(`✓ 接続OK${json.spreadsheet ? ' / シート: ' + json.spreadsheet : ''}${json.spreadsheetUrl ? ' (URLを自動保存)' : ''}`, 'success', 7000);
         } else if (json && json.message) {
           showStatus(`✗ GAS応答エラー: ${json.message}`, 'error', 12000);
         } else {
@@ -1034,6 +1112,7 @@ function doGet() {
           // 成功 → 前回値として保存し、モーダル
           saveJSON(KEY_LAST, data);
           state.last = data;
+          if (json.spreadsheetUrl) saveSheetUrl(json.spreadsheetUrl);
           hideStatus();
           const detail = json.spreadsheet ? `シート「${json.spreadsheet}」に1行追記しました。` : 'スプレッドシートに保存されました。';
           showModal('success', '記録しました', detail);
@@ -1066,6 +1145,7 @@ function doGet() {
       renderNameSelects();
       renderNameEditList();
       document.getElementById('gas-url').value = state.gasUrl;
+      document.getElementById('sheet-url').value = state.sheetUrl;
       applyDefaults();
     }
     init();
