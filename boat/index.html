@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d47a1">
+  <title>出航前点検記録</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      background: #eef2f7;
+      color: #1a2733;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .app {
+      max-width: 560px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: #eef2f7;
+      padding-bottom: 100px;
+    }
+
+    /* HEADER */
+    header {
+      background: linear-gradient(135deg, #0d47a1, #1976d2);
+      color: white;
+      padding: 14px 16px 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      padding-bottom: 12px;
+    }
+    .nav {
+      display: flex;
+      gap: 4px;
+    }
+    .nav button {
+      flex: 1;
+      padding: 12px 8px;
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+    }
+    .nav button.active {
+      color: white;
+      border-bottom-color: #ffd54f;
+    }
+
+    /* STATUS BAR */
+    .status-bar {
+      padding: 8px 16px;
+      font-size: 12px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+    .status-bar.show { display: block; }
+    .status-bar.success { background: #e8f5e9; color: #2e7d32; }
+    .status-bar.error { background: #ffebee; color: #c62828; }
+    .status-bar.loading { background: #e3f2fd; color: #1565c0; }
+    .status-bar.warning { background: #fff8e1; color: #ef6c00; }
+
+    /* CARDS */
+    .card {
+      background: white;
+      margin: 12px;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .card h3 {
+      font-size: 14px;
+      color: #0d47a1;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e3f2fd;
+      font-weight: 700;
+    }
+
+    /* FORM */
+    .field {
+      margin-bottom: 14px;
+    }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #455a64;
+      margin-bottom: 6px;
+    }
+    .field input[type="text"],
+    .field input[type="number"],
+    .field input[type="date"],
+    .field input[type="time"],
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 12px 12px;
+      border: 1.5px solid #cfd8dc;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+      color: #1a2733;
+      font-family: inherit;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .field select {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23607d8b' d='M7 10l5 5 5-5z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 24px;
+      padding-right: 36px;
+    }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 3px rgba(25,118,210,0.15);
+    }
+    .field textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* INSPECTION ITEM TOGGLE */
+    .inspect-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f4f8;
+    }
+    .inspect-item:last-child { border-bottom: none; }
+    .inspect-label {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      color: #263238;
+      padding-right: 8px;
+    }
+    .inspect-toggle {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .toggle-btn {
+      width: 52px;
+      height: 44px;
+      border: 2px solid #cfd8dc;
+      background: white;
+      border-radius: 8px;
+      font-size: 22px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #90a4ae;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .toggle-btn.maru.active {
+      background: #2e7d32;
+      border-color: #2e7d32;
+      color: white;
+    }
+    .toggle-btn.batsu.active {
+      background: #c62828;
+      border-color: #c62828;
+      color: white;
+    }
+
+    /* OPERATION DECISION */
+    .decision-group {
+      display: flex;
+      gap: 10px;
+    }
+    .decision-btn {
+      flex: 1;
+      padding: 16px;
+      border: 2px solid #cfd8dc;
+      background: white;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #607d8b;
+    }
+    .decision-btn.ka.active {
+      background: #2e7d32;
+      border-color: #2e7d32;
+      color: white;
+    }
+    .decision-btn.hi.active {
+      background: #c62828;
+      border-color: #c62828;
+      color: white;
+    }
+
+    /* SUBMIT */
+    .submit-area {
+      margin: 16px 12px 24px;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #0d47a1, #1976d2);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(13,71,161,0.3);
+    }
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .submit-btn:active {
+      transform: translateY(1px);
+    }
+
+    /* SETTINGS */
+    .name-list {
+      list-style: none;
+    }
+    .name-item {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .name-item input {
+      flex: 1;
+      padding: 10px;
+      border: 1.5px solid #cfd8dc;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: #ffebee;
+      color: #c62828;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .add-btn {
+      width: 100%;
+      padding: 10px;
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1.5px dashed #90caf9;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #607d8b;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    .help-text code {
+      background: #eef2f7;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .setup-steps {
+      font-size: 13px;
+      color: #455a64;
+      line-height: 1.7;
+      padding-left: 4px;
+    }
+    .setup-steps ol { padding-left: 20px; }
+    .setup-steps li { margin-bottom: 6px; }
+    .setup-steps a { color: #1565c0; }
+
+    .gas-code {
+      background: #263238;
+      color: #cfd8dc;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+      margin-top: 8px;
+    }
+    .copy-btn {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🚢 出航前点検記録</h1>
+      <div class="nav">
+        <button class="active" data-view="form">入力</button>
+        <button data-view="settings">設定</button>
+      </div>
+    </header>
+
+    <div id="status" class="status-bar"></div>
+
+    <!-- ===================== FORM VIEW ===================== -->
+    <section id="view-form">
+
+      <div class="card">
+        <h3>基本情報</h3>
+        <div class="field-row">
+          <div class="field">
+            <label>日付</label>
+            <input type="date" name="date">
+          </div>
+          <div class="field">
+            <label>乗船時間</label>
+            <input type="time" name="boardingTime">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>乗船人数</label>
+            <input type="number" name="passengers" min="0" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label>船長</label>
+            <select name="captain"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>点検項目（〇=良 / ×=不良）</h3>
+        <div id="inspect-list"></div>
+      </div>
+
+      <div class="card">
+        <h3>気象・海象</h3>
+        <div class="field-row">
+          <div class="field">
+            <label>天候</label>
+            <input type="text" name="weather" placeholder="晴・曇・雨など">
+          </div>
+          <div class="field">
+            <label>風力</label>
+            <input type="text" name="windPower" placeholder="m/s など">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>風向</label>
+            <input type="text" name="windDirection" placeholder="北・南西など">
+          </div>
+          <div class="field">
+            <label>波高</label>
+            <input type="text" name="waveHeight" placeholder="m">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>視程</label>
+            <input type="text" name="visibility" placeholder="km / 良好 など">
+          </div>
+          <div class="field">
+            <label>気温</label>
+            <input type="text" name="temperature" placeholder="℃">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>運行判断</h3>
+        <div class="field">
+          <label>運行可否判断</label>
+          <div class="decision-group">
+            <button type="button" class="decision-btn ka" data-decision="可">可</button>
+            <button type="button" class="decision-btn hi" data-decision="否">否</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>緊急連絡・時間・場所・内容</label>
+          <textarea name="emergencyContact" placeholder="必要な場合のみ"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>帰港・記録者</h3>
+        <div class="field-row">
+          <div class="field">
+            <label>帰港時間</label>
+            <input type="time" name="returnTime">
+          </div>
+          <div class="field">
+            <label>記録者</label>
+            <select name="recorder"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="submit-area">
+        <button id="submit" class="submit-btn">📝 記録する</button>
+      </div>
+    </section>
+
+    <!-- ===================== SETTINGS VIEW ===================== -->
+    <section id="view-settings" class="hidden">
+
+      <div class="card">
+        <h3>船長・記録者の名前リスト</h3>
+        <ul id="name-list" class="name-list"></ul>
+        <button id="add-name" class="add-btn">+ 名前を追加</button>
+        <button id="save-names" class="save-btn">名前リストを保存</button>
+      </div>
+
+      <div class="card">
+        <h3>Google スプレッドシート連携</h3>
+        <div class="field">
+          <label>Google Apps Script Web App URL</label>
+          <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec">
+          <div class="help-text">下記の手順で発行したURLを貼り付けてください。</div>
+        </div>
+        <button id="save-gas" class="save-btn">URLを保存</button>
+      </div>
+
+      <div class="card">
+        <h3>セットアップ手順</h3>
+        <div class="setup-steps">
+          <ol>
+            <li>記録用の <a href="https://sheets.new" target="_blank">Google スプレッドシート</a> を新規作成</li>
+            <li>メニュー「拡張機能 → Apps Script」を開く</li>
+            <li>下記の GAS コードを全てコピーして貼り付け、保存</li>
+            <li>右上「デプロイ → 新しいデプロイ」を選び、種類で「ウェブアプリ」を選択</li>
+            <li>「アクセスできるユーザー」を「全員」に設定し、デプロイを実行</li>
+            <li>発行されたWebアプリURLを上の欄に貼り付けて保存</li>
+          </ol>
+        </div>
+        <div style="margin-top:12px;">
+          <button id="copy-gas" class="copy-btn">📋 GASコードをコピー</button>
+        </div>
+        <pre id="gas-code" class="gas-code"></pre>
+      </div>
+
+      <div class="card" style="background:#fff8e1;">
+        <h3 style="color:#ef6c00;border-bottom-color:#ffe082;">データ管理</h3>
+        <button id="clear-last" class="save-btn" style="background:#ef6c00;">前回入力データをリセット</button>
+        <div class="help-text" style="margin-top:8px;">「前回の入力を初期値にする」機能を一度リセットします。スプレッドシートのデータは消えません。</div>
+      </div>
+
+    </section>
+  </div>
+
+  <script>
+    // ============== CONSTANTS ==============
+    const INSPECT_ITEMS = [
+      '①船体全般',
+      '②主機関',
+      '③排水設備',
+      '④ビルジの量',
+      '⑤操舵装置',
+      '⑥燃料の量',
+      '⑦救命設備',
+      '⑧係留用ロープ等',
+      '⑨航海機器類',
+      '⑩消火設備',
+      '⑪座席座面及びボルト',
+      '⑫船長の健康状態'
+    ];
+
+    const DEFAULT_NAMES = ['木村淳', '木村涼子', '滝麻衣果', '平吹佳奈'];
+
+    const GAS_CODE = `// 出航前点検記録 受信エンドポイント
+const SHEET_NAME = '点検記録';
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAME);
+      sheet.appendRow([
+        '記録日時','日付','乗船時間','乗船人数','船長',
+        '①船体全般','②主機関','③排水設備','④ビルジの量',
+        '⑤操舵装置','⑥燃料の量','⑦救命設備','⑧係留用ロープ等',
+        '⑨航海機器類','⑩消火設備','⑪座席座面及びボルト','⑫船長の健康状態',
+        '天候','風力','風向','波高','視程','気温',
+        '運行可否判断','緊急連絡・時間・場所・内容','帰港時間','記録者'
+      ]);
+      sheet.getRange(1,1,1,27).setFontWeight('bold').setBackground('#e3f2fd');
+      sheet.setFrozenRows(1);
+    }
+    sheet.appendRow([
+      new Date(),
+      data.date || '',
+      data.boardingTime || '',
+      data.passengers || '',
+      data.captain || '',
+      data.item1, data.item2, data.item3, data.item4,
+      data.item5, data.item6, data.item7, data.item8,
+      data.item9, data.item10, data.item11, data.item12,
+      data.weather || '',
+      data.windPower || '',
+      data.windDirection || '',
+      data.waveHeight || '',
+      data.visibility || '',
+      data.temperature || '',
+      data.operationDecision || '',
+      data.emergencyContact || '',
+      data.returnTime || '',
+      data.recorder || ''
+    ]);
+    return ContentService
+      .createTextOutput(JSON.stringify({status:'ok'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({status:'error', message: String(err)}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet() {
+  return ContentService.createTextOutput('Boat Inspection Endpoint OK');
+}`;
+
+    // ============== STATE ==============
+    const KEY_NAMES = 'boat.names';
+    const KEY_GAS = 'boat.gasUrl';
+    const KEY_LAST = 'boat.lastRecord';
+
+    let state = {
+      names: loadJSON(KEY_NAMES) || DEFAULT_NAMES.slice(),
+      gasUrl: localStorage.getItem(KEY_GAS) || '',
+      last: loadJSON(KEY_LAST) || null,
+      decision: '可'
+    };
+
+    function loadJSON(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
+    function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+    // ============== STATUS BAR ==============
+    function showStatus(msg, type, ms){
+      const el = document.getElementById('status');
+      el.className = 'status-bar show ' + type;
+      el.textContent = msg;
+      if (ms){
+        clearTimeout(showStatus._t);
+        showStatus._t = setTimeout(()=> el.classList.remove('show'), ms);
+      }
+    }
+    function hideStatus(){
+      document.getElementById('status').classList.remove('show');
+    }
+
+    // ============== NAV ==============
+    document.querySelectorAll('.nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const view = btn.dataset.view;
+        document.getElementById('view-form').classList.toggle('hidden', view !== 'form');
+        document.getElementById('view-settings').classList.toggle('hidden', view !== 'settings');
+        window.scrollTo(0,0);
+      });
+    });
+
+    // ============== INSPECT ITEMS RENDER ==============
+    function renderInspectItems(){
+      const list = document.getElementById('inspect-list');
+      list.innerHTML = '';
+      INSPECT_ITEMS.forEach((label, idx) => {
+        const row = document.createElement('div');
+        row.className = 'inspect-item';
+        row.innerHTML = `
+          <div class="inspect-label">${label}</div>
+          <div class="inspect-toggle" data-item="item${idx+1}">
+            <button type="button" class="toggle-btn maru" data-val="〇">〇</button>
+            <button type="button" class="toggle-btn batsu" data-val="×">×</button>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+      list.querySelectorAll('.inspect-toggle').forEach(group => {
+        group.querySelectorAll('.toggle-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            group.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+          });
+        });
+      });
+    }
+
+    function setInspect(itemKey, val){
+      const group = document.querySelector(`.inspect-toggle[data-item="${itemKey}"]`);
+      if (!group) return;
+      group.querySelectorAll('.toggle-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === val);
+      });
+    }
+    function getInspect(itemKey){
+      const group = document.querySelector(`.inspect-toggle[data-item="${itemKey}"]`);
+      if (!group) return '〇';
+      const a = group.querySelector('.toggle-btn.active');
+      return a ? a.dataset.val : '〇';
+    }
+
+    // ============== DECISION ==============
+    document.querySelectorAll('.decision-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.decision-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.decision = btn.dataset.decision;
+      });
+    });
+    function setDecision(v){
+      state.decision = v || '可';
+      document.querySelectorAll('.decision-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.decision === state.decision);
+      });
+    }
+
+    // ============== NAME SELECTS ==============
+    function renderNameSelects(){
+      ['captain','recorder'].forEach(name => {
+        const sel = document.querySelector(`select[name="${name}"]`);
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">— 選択 —</option>' +
+          state.names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+        if (cur && state.names.includes(cur)) sel.value = cur;
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ============== SETTINGS: NAME LIST EDIT ==============
+    function renderNameEditList(){
+      const ul = document.getElementById('name-list');
+      ul.innerHTML = '';
+      state.names.forEach((n, i) => {
+        const li = document.createElement('li');
+        li.className = 'name-item';
+        li.innerHTML = `
+          <input type="text" value="${escapeHtml(n)}" data-idx="${i}">
+          <button class="icon-btn" data-del="${i}" title="削除">×</button>
+        `;
+        ul.appendChild(li);
+      });
+      ul.querySelectorAll('.icon-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          const idx = parseInt(b.dataset.del,10);
+          collectNamesFromUI();
+          state.names.splice(idx,1);
+          renderNameEditList();
+        });
+      });
+    }
+    function collectNamesFromUI(){
+      const inputs = document.querySelectorAll('#name-list input');
+      state.names = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+    }
+    document.getElementById('add-name').addEventListener('click', () => {
+      collectNamesFromUI();
+      state.names.push('');
+      renderNameEditList();
+      const inputs = document.querySelectorAll('#name-list input');
+      if (inputs.length) inputs[inputs.length-1].focus();
+    });
+    document.getElementById('save-names').addEventListener('click', () => {
+      collectNamesFromUI();
+      if (!state.names.length){
+        showStatus('名前を最低1人は登録してください', 'error', 3000);
+        return;
+      }
+      saveJSON(KEY_NAMES, state.names);
+      renderNameSelects();
+      renderNameEditList();
+      showStatus('名前リストを保存しました', 'success', 2500);
+    });
+
+    // ============== SETTINGS: GAS URL ==============
+    document.getElementById('save-gas').addEventListener('click', () => {
+      const v = document.getElementById('gas-url').value.trim();
+      state.gasUrl = v;
+      localStorage.setItem(KEY_GAS, v);
+      showStatus(v ? 'URLを保存しました' : 'URLをクリアしました', 'success', 2500);
+    });
+
+    // ============== SETTINGS: GAS CODE COPY ==============
+    document.getElementById('gas-code').textContent = GAS_CODE;
+    document.getElementById('copy-gas').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(GAS_CODE);
+        showStatus('GASコードをコピーしました', 'success', 2500);
+      } catch(e) {
+        showStatus('コピーに失敗しました。手動で選択してください', 'error', 3000);
+      }
+    });
+
+    // ============== SETTINGS: CLEAR LAST ==============
+    document.getElementById('clear-last').addEventListener('click', () => {
+      if (!confirm('前回入力データを削除します。よろしいですか？')) return;
+      localStorage.removeItem(KEY_LAST);
+      state.last = null;
+      applyDefaults();
+      showStatus('前回データをリセットしました', 'success', 2500);
+    });
+
+    // ============== FORM DEFAULTS ==============
+    function todayStr(){
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const da = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`;
+    }
+
+    function applyDefaults(){
+      // Date: 今日に固定（前回値で上書きしない）
+      document.querySelector('[name="date"]').value = todayStr();
+
+      const last = state.last;
+      const FIELDS = ['boardingTime','passengers','weather','windPower','windDirection','waveHeight','visibility','temperature','emergencyContact','returnTime','captain','recorder'];
+      FIELDS.forEach(f => {
+        const el = document.querySelector(`[name="${f}"]`);
+        if (!el) return;
+        el.value = (last && last[f] != null) ? last[f] : '';
+      });
+
+      // ①〜⑫: 前回値があればそれ、なければ全部〇
+      for (let i=1; i<=12; i++){
+        const v = (last && last['item'+i]) ? last['item'+i] : '〇';
+        setInspect('item'+i, v);
+      }
+      // 運行可否: 前回値があればそれ、なければ可
+      setDecision((last && last.operationDecision) ? last.operationDecision : '可');
+    }
+
+    // ============== SUBMIT ==============
+    function collectFormData(){
+      const get = n => (document.querySelector(`[name="${n}"]`) || {}).value || '';
+      const data = {
+        date: get('date'),
+        boardingTime: get('boardingTime'),
+        passengers: get('passengers'),
+        captain: get('captain'),
+        weather: get('weather'),
+        windPower: get('windPower'),
+        windDirection: get('windDirection'),
+        waveHeight: get('waveHeight'),
+        visibility: get('visibility'),
+        temperature: get('temperature'),
+        operationDecision: state.decision,
+        emergencyContact: get('emergencyContact'),
+        returnTime: get('returnTime'),
+        recorder: get('recorder')
+      };
+      for (let i=1; i<=12; i++) data['item'+i] = getInspect('item'+i);
+      return data;
+    }
+
+    async function submitRecord(){
+      if (!state.gasUrl){
+        showStatus('「設定」画面でGoogle Apps Script のURLを登録してください', 'warning', 5000);
+        return;
+      }
+      const data = collectFormData();
+      if (!data.captain){ showStatus('船長を選択してください','error',3000); return; }
+      if (!data.recorder){ showStatus('記録者を選択してください','error',3000); return; }
+
+      const btn = document.getElementById('submit');
+      btn.disabled = true;
+      btn.textContent = '送信中...';
+      showStatus('スプレッドシートに送信中...', 'loading');
+
+      try {
+        const resp = await fetch(state.gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(data),
+          redirect: 'follow'
+        });
+        let ok = false;
+        try {
+          const json = await resp.json();
+          ok = json && json.status === 'ok';
+          if (!ok && json && json.message) {
+            throw new Error(json.message);
+          }
+        } catch(e) {
+          // レスポンスがJSONでない場合でもHTTP 200なら成功とみなす
+          ok = resp.ok;
+        }
+        if (!ok) throw new Error('送信に失敗しました');
+
+        // 前回値として保存
+        saveJSON(KEY_LAST, data);
+        state.last = data;
+        showStatus('✓ 記録を保存しました', 'success', 4000);
+      } catch(err) {
+        console.error(err);
+        showStatus('送信エラー: ' + (err.message || err), 'error', 6000);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📝 記録する';
+      }
+    }
+    document.getElementById('submit').addEventListener('click', submitRecord);
+
+    // ============== INIT ==============
+    function init(){
+      renderInspectItems();
+      renderNameSelects();
+      renderNameEditList();
+      document.getElementById('gas-url').value = state.gasUrl;
+      applyDefaults();
+    }
+    init();
+  </script>
+</body>
+</html>
