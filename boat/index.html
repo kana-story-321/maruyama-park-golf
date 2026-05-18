@@ -395,31 +395,31 @@
         <div class="field-row">
           <div class="field">
             <label>天候</label>
-            <input type="text" name="weather" placeholder="晴・曇・雨など">
+            <select name="weather"></select>
           </div>
           <div class="field">
             <label>風力</label>
-            <input type="text" name="windPower" placeholder="m/s など">
+            <select name="windPower"></select>
           </div>
         </div>
         <div class="field-row">
           <div class="field">
             <label>風向</label>
-            <input type="text" name="windDirection" placeholder="北・南西など">
+            <select name="windDirection"></select>
           </div>
           <div class="field">
             <label>波高</label>
-            <input type="text" name="waveHeight" placeholder="m">
+            <select name="waveHeight"></select>
           </div>
         </div>
         <div class="field-row">
           <div class="field">
             <label>視程</label>
-            <input type="text" name="visibility" placeholder="km / 良好 など">
+            <select name="visibility"></select>
           </div>
           <div class="field">
             <label>気温</label>
-            <input type="text" name="temperature" placeholder="℃">
+            <select name="temperature"></select>
           </div>
         </div>
       </div>
@@ -476,19 +476,26 @@
           <div class="help-text">下記の手順で発行したURLを貼り付けてください。</div>
         </div>
         <button id="save-gas" class="save-btn">URLを保存</button>
+        <button id="test-gas" class="save-btn" style="background:#43a047;margin-top:8px;">📡 接続テスト</button>
+        <div class="help-text">「接続テスト」はスプレッドシートに行を追加せず、GAS側との通信のみ確認します。</div>
       </div>
 
       <div class="card">
         <h3>セットアップ手順</h3>
         <div class="setup-steps">
           <ol>
-            <li>記録用の <a href="https://sheets.new" target="_blank">Google スプレッドシート</a> を新規作成</li>
-            <li>メニュー「拡張機能 → Apps Script」を開く</li>
-            <li>下記の GAS コードを全てコピーして貼り付け、保存</li>
-            <li>右上「デプロイ → 新しいデプロイ」を選び、種類で「ウェブアプリ」を選択</li>
-            <li>「アクセスできるユーザー」を「全員」に設定し、デプロイを実行</li>
-            <li>発行されたWebアプリURLを上の欄に貼り付けて保存</li>
+            <li>記録用の <a href="https://sheets.new" target="_blank">Google スプレッドシート</a> を新規作成（必ずシート画面から開始）</li>
+            <li>そのシートのメニュー「拡張機能 → Apps Script」を開く（重要：シートと紐付ける）</li>
+            <li>下記の GAS コードを<b>全文置き換え</b>で貼り付け、💾 保存</li>
+            <li>右上「デプロイ → 新しいデプロイ」→ 歯車アイコンで「ウェブアプリ」を選択</li>
+            <li>「次のユーザーとして実行: 自分」「アクセスできるユーザー: 全員」に設定 → デプロイ</li>
+            <li>初回は権限承認画面が出るので承認（「詳細 → 安全でないページに移動」で進める）</li>
+            <li>表示された「ウェブアプリURL」（末尾 <code>/exec</code>）をコピーし、上の欄に貼り付け「URLを保存」</li>
+            <li>「📡 接続テスト」を押して <b>✓ 接続OK</b> が出れば完了</li>
           </ol>
+          <div class="help-text" style="margin-top:8px;">
+            ⚠️ コードを書き換えた場合は「デプロイ → デプロイを管理 → 鉛筆アイコン → バージョン: 新しいバージョン → デプロイ」で更新（URLは変わりません）。
+          </div>
         </div>
         <div style="margin-top:12px;">
           <button id="copy-gas" class="copy-btn">📋 GASコードをコピー</button>
@@ -524,13 +531,40 @@
 
     const DEFAULT_NAMES = ['木村淳', '木村涼子', '滝麻衣果', '平吹佳奈'];
 
+    const SELECT_OPTIONS = {
+      weather: ['晴','快晴','曇','薄曇','小雨','雨','大雨','雷雨','雪','霧'],
+      windPower: ['0 (無風)','1 (至軽風)','2 (軽風)','3 (軟風)','4 (和風)','5 (疾風)','6 (雄風)','7 (強風)','8 (疾強風)','9 (大強風)','10 (全強風)','11 (暴風)','12 (颶風)'],
+      windDirection: ['北','北東','東','南東','南','南西','西','北西','無風'],
+      waveHeight: ['平穏 (0.1m未満)','小波 (0.1〜0.5m)','中波 (0.5〜1.25m)','大波 (1.25〜2.5m)','うねり (2.5〜4m)','高波 (4m以上)'],
+      visibility: ['良好 (10km以上)','普通 (4〜10km)','やや不良 (1〜4km)','不良 (1km未満)','濃霧'],
+      temperature: ['0℃未満','0〜5℃','5〜10℃','10〜15℃','15〜20℃','20〜25℃','25〜30℃','30℃以上']
+    };
+
     const GAS_CODE = `// 出航前点検記録 受信エンドポイント
 const SHEET_NAME = '点検記録';
 
 function doPost(e) {
+  const lock = LockService.getScriptLock();
   try {
-    const data = JSON.parse(e.postData.contents);
+    lock.waitLock(20000);
+
+    if (!e || !e.postData || !e.postData.contents) {
+      return jsonResp({status:'error', message:'POSTデータがありません'});
+    }
+    let data;
+    try { data = JSON.parse(e.postData.contents); }
+    catch(err) { return jsonResp({status:'error', message:'JSON解析失敗: '+err.message}); }
+
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      return jsonResp({status:'error', message:'スプレッドシートに紐付いていません。スプレッドシートを開いて「拡張機能 > Apps Script」から作成してください。'});
+    }
+
+    // 接続テスト (書き込みなし)
+    if (data.test === true) {
+      return jsonResp({status:'ok', test:true, spreadsheet: ss.getName()});
+    }
+
     let sheet = ss.getSheetByName(SHEET_NAME);
     if (!sheet) {
       sheet = ss.insertSheet(SHEET_NAME);
@@ -545,38 +579,38 @@ function doPost(e) {
       sheet.getRange(1,1,1,27).setFontWeight('bold').setBackground('#e3f2fd');
       sheet.setFrozenRows(1);
     }
+
     sheet.appendRow([
       new Date(),
-      data.date || '',
-      data.boardingTime || '',
-      data.passengers || '',
-      data.captain || '',
-      data.item1, data.item2, data.item3, data.item4,
-      data.item5, data.item6, data.item7, data.item8,
-      data.item9, data.item10, data.item11, data.item12,
-      data.weather || '',
-      data.windPower || '',
-      data.windDirection || '',
-      data.waveHeight || '',
-      data.visibility || '',
-      data.temperature || '',
-      data.operationDecision || '',
-      data.emergencyContact || '',
-      data.returnTime || '',
-      data.recorder || ''
+      data.date || '', data.boardingTime || '', data.passengers || '', data.captain || '',
+      data.item1 || '', data.item2 || '', data.item3 || '', data.item4 || '',
+      data.item5 || '', data.item6 || '', data.item7 || '', data.item8 || '',
+      data.item9 || '', data.item10 || '', data.item11 || '', data.item12 || '',
+      data.weather || '', data.windPower || '', data.windDirection || '', data.waveHeight || '',
+      data.visibility || '', data.temperature || '', data.operationDecision || '',
+      data.emergencyContact || '', data.returnTime || '', data.recorder || ''
     ]);
-    return ContentService
-      .createTextOutput(JSON.stringify({status:'ok'}))
-      .setMimeType(ContentService.MimeType.JSON);
+
+    return jsonResp({status:'ok', spreadsheet: ss.getName()});
   } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({status:'error', message: String(err)}))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResp({status:'error', message: String(err && err.stack || err)});
+  } finally {
+    try { lock.releaseLock(); } catch(_) {}
   }
 }
 
+function jsonResp(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function doGet() {
-  return ContentService.createTextOutput('Boat Inspection Endpoint OK');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return jsonResp({
+    status:'ok',
+    message:'Boat Inspection Endpoint OK',
+    spreadsheet: ss ? ss.getName() : null
+  });
 }`;
 
     // ============== STATE ==============
@@ -686,6 +720,16 @@ function doGet() {
       });
     }
 
+    // ============== WEATHER SELECTS ==============
+    function renderWeatherSelects(){
+      Object.keys(SELECT_OPTIONS).forEach(name => {
+        const sel = document.querySelector(`select[name="${name}"]`);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— 選択 —</option>' +
+          SELECT_OPTIONS[name].map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+      });
+    }
+
     function escapeHtml(s){
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
@@ -740,7 +784,40 @@ function doGet() {
       const v = document.getElementById('gas-url').value.trim();
       state.gasUrl = v;
       localStorage.setItem(KEY_GAS, v);
-      showStatus(v ? 'URLを保存しました' : 'URLをクリアしました', 'success', 2500);
+      if (v && !/\/exec$/.test(v)) {
+        showStatus('保存しました。但しURLが /exec で終わっていません。デプロイ後の正しいウェブアプリURLか確認してください。', 'warning', 7000);
+      } else {
+        showStatus(v ? 'URLを保存しました' : 'URLをクリアしました', 'success', 2500);
+      }
+    });
+
+    // ============== SETTINGS: 接続テスト ==============
+    document.getElementById('test-gas').addEventListener('click', async () => {
+      const url = document.getElementById('gas-url').value.trim() || state.gasUrl;
+      if (!url) { showStatus('まずGAS URLを入力してください', 'warning', 3000); return; }
+      showStatus('接続テスト中...', 'loading');
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ test: true }),
+          redirect: 'follow'
+        });
+        const text = await resp.text();
+        let json = null;
+        try { json = JSON.parse(text); } catch(_) {}
+        if (json && json.status === 'ok') {
+          showStatus(`✓ 接続OK${json.spreadsheet ? ' / シート: ' + json.spreadsheet : ''}`, 'success', 7000);
+        } else if (json && json.message) {
+          showStatus(`✗ GAS応答エラー: ${json.message}`, 'error', 12000);
+        } else {
+          // HTMLが返ってきた場合 → ログインページ/権限不足/URL違い
+          const snip = text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0, 200);
+          showStatus(`✗ 応答が不正（HTMLが返却された可能性）: ${snip || '(空応答)'}`, 'error', 15000);
+        }
+      } catch (err) {
+        showStatus(`✗ 接続失敗: ${err.message || err}`, 'error', 12000);
+      }
     });
 
     // ============== SETTINGS: GAS CODE COPY ==============
@@ -781,7 +858,15 @@ function doGet() {
       FIELDS.forEach(f => {
         const el = document.querySelector(`[name="${f}"]`);
         if (!el) return;
-        el.value = (last && last[f] != null) ? last[f] : '';
+        const v = (last && last[f] != null) ? last[f] : '';
+        // SELECT で前回値がオプションに無ければ動的に追加（履歴互換）
+        if (el.tagName === 'SELECT' && v && !Array.from(el.options).some(o => o.value === v)) {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = v + ' (前回入力)';
+          el.appendChild(opt);
+        }
+        el.value = v;
       });
 
       // ①〜⑫: 前回値があればそれ、なければ全部〇
@@ -867,6 +952,7 @@ function doGet() {
     // ============== INIT ==============
     function init(){
       renderInspectItems();
+      renderWeatherSelects();
       renderNameSelects();
       renderNameEditList();
       document.getElementById('gas-url').value = state.gasUrl;
