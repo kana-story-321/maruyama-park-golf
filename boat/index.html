@@ -344,6 +344,81 @@
     }
 
     .hidden { display: none !important; }
+
+    /* MODAL POPUP */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+    }
+    .modal-content {
+      position: relative;
+      background: white;
+      border-radius: 16px;
+      padding: 28px 24px 20px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.35);
+      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-icon {
+      width: 64px; height: 64px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 700;
+      color: white;
+    }
+    .modal.success .modal-icon { background: #2e7d32; }
+    .modal.error   .modal-icon { background: #c62828; }
+    .modal.warning .modal-icon { background: #ef6c00; }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #1a2733;
+    }
+    .modal-message {
+      font-size: 14px;
+      color: #455a64;
+      line-height: 1.6;
+      margin-bottom: 22px;
+      word-break: break-word;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+    .modal-ok {
+      width: 100%;
+      padding: 14px;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal.success .modal-ok { background: #2e7d32; }
+    .modal.error   .modal-ok { background: #c62828; }
+    .modal.warning .modal-ok { background: #ef6c00; }
   </style>
 </head>
 <body>
@@ -512,6 +587,17 @@
     </section>
   </div>
 
+  <!-- MODAL POPUP -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-icon">✓</div>
+      <div class="modal-title">タイトル</div>
+      <div class="modal-message">メッセージ</div>
+      <button class="modal-ok">OK</button>
+    </div>
+  </div>
+
   <script>
     // ============== CONSTANTS ==============
     const INSPECT_ITEMS = [
@@ -533,11 +619,11 @@
 
     const SELECT_OPTIONS = {
       weather: ['晴','快晴','曇','薄曇','小雨','雨','大雨','雷雨','雪','霧'],
-      windPower: ['0 (無風)','1 (至軽風)','2 (軽風)','3 (軟風)','4 (和風)','5 (疾風)','6 (雄風)','7 (強風)','8 (疾強風)','9 (大強風)','10 (全強風)','11 (暴風)','12 (颶風)'],
+      windPower: Array.from({length: 26}, (_, i) => `${i}m`),                  // 0m〜25m
       windDirection: ['北','北東','東','南東','南','南西','西','北西','無風'],
       waveHeight: ['平穏 (0.1m未満)','小波 (0.1〜0.5m)','中波 (0.5〜1.25m)','大波 (1.25〜2.5m)','うねり (2.5〜4m)','高波 (4m以上)'],
-      visibility: ['良好 (10km以上)','普通 (4〜10km)','やや不良 (1〜4km)','不良 (1km未満)','濃霧'],
-      temperature: ['0℃未満','0〜5℃','5〜10℃','10〜15℃','15〜20℃','20〜25℃','25〜30℃','30℃以上']
+      visibility: Array.from({length: 16}, (_, i) => `${20 - i}km`),           // 20km〜5km
+      temperature: Array.from({length: 24}, (_, i) => `${38 - i}°`)            // 38°〜15°
     };
 
     const GAS_CODE = `// 出航前点検記録 受信エンドポイント
@@ -641,6 +727,24 @@ function doGet() {
     function hideStatus(){
       document.getElementById('status').classList.remove('show');
     }
+
+    // ============== MODAL ==============
+    function showModal(type, title, message){
+      const m = document.getElementById('modal');
+      m.classList.remove('hidden','success','error','warning');
+      m.classList.add(type);
+      m.querySelector('.modal-icon').textContent =
+        type === 'success' ? '✓' : (type === 'error' ? '✕' : '!');
+      m.querySelector('.modal-title').textContent = title;
+      m.querySelector('.modal-message').textContent = message || '';
+      // フォーカスをOKボタンに当てて Enter で閉じられるように
+      setTimeout(() => m.querySelector('.modal-ok').focus(), 50);
+    }
+    function hideModal(){
+      document.getElementById('modal').classList.add('hidden');
+    }
+    document.querySelector('#modal .modal-ok').addEventListener('click', hideModal);
+    document.querySelector('#modal .modal-backdrop').addEventListener('click', hideModal);
 
     // ============== NAV ==============
     document.querySelectorAll('.nav button').forEach(btn => {
@@ -903,12 +1007,12 @@ function doGet() {
 
     async function submitRecord(){
       if (!state.gasUrl){
-        showStatus('「設定」画面でGoogle Apps Script のURLを登録してください', 'warning', 5000);
+        showModal('warning', 'URL未登録', '「設定」タブで Google Apps Script のWeb App URLを登録してください。');
         return;
       }
       const data = collectFormData();
-      if (!data.captain){ showStatus('船長を選択してください','error',3000); return; }
-      if (!data.recorder){ showStatus('記録者を選択してください','error',3000); return; }
+      if (!data.captain){ showModal('warning','入力不足','船長を選択してください。'); return; }
+      if (!data.recorder){ showModal('warning','入力不足','記録者を選択してください。'); return; }
 
       const btn = document.getElementById('submit');
       btn.disabled = true;
@@ -922,26 +1026,32 @@ function doGet() {
           body: JSON.stringify(data),
           redirect: 'follow'
         });
-        let ok = false;
-        try {
-          const json = await resp.json();
-          ok = json && json.status === 'ok';
-          if (!ok && json && json.message) {
-            throw new Error(json.message);
-          }
-        } catch(e) {
-          // レスポンスがJSONでない場合でもHTTP 200なら成功とみなす
-          ok = resp.ok;
-        }
-        if (!ok) throw new Error('送信に失敗しました');
+        const text = await resp.text();
+        let json = null;
+        try { json = JSON.parse(text); } catch(_) {}
 
-        // 前回値として保存
-        saveJSON(KEY_LAST, data);
-        state.last = data;
-        showStatus('✓ 記録を保存しました', 'success', 4000);
+        if (json && json.status === 'ok') {
+          // 成功 → 前回値として保存し、モーダル
+          saveJSON(KEY_LAST, data);
+          state.last = data;
+          hideStatus();
+          const detail = json.spreadsheet ? `シート「${json.spreadsheet}」に1行追記しました。` : 'スプレッドシートに保存されました。';
+          showModal('success', '記録しました', detail);
+        } else if (json && json.message) {
+          throw new Error(json.message);
+        } else if (resp.ok) {
+          // JSON ではないが HTTP 200 — 成功として扱う
+          saveJSON(KEY_LAST, data);
+          state.last = data;
+          hideStatus();
+          showModal('success', '記録しました', 'スプレッドシートへの送信に成功しました。');
+        } else {
+          throw new Error(`HTTP ${resp.status}: ${text.slice(0,200)}`);
+        }
       } catch(err) {
         console.error(err);
-        showStatus('送信エラー: ' + (err.message || err), 'error', 6000);
+        hideStatus();
+        showModal('error', '送信に失敗しました', String(err && err.message || err));
       } finally {
         btn.disabled = false;
         btn.textContent = '📝 記録する';
