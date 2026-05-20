@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スケジュール管理ツール - タスク・進捗・KPI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #2d6e2d;
+      --primary-dark: #1a4a1a;
+      --accent: #f39c12;
+      --danger: #e74c3c;
+      --success: #27ae60;
+      --info: #3498db;
+      --warn: #f1c40f;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --border: #e1e5ea;
+      --text: #2c3e50;
+      --text-light: #7f8c8d;
+    }
+    body {
+      font-family: 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+    .app { display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      background: linear-gradient(180deg, var(--primary-dark), var(--primary));
+      color: white;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    .sidebar .brand {
+      padding: 22px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+    .sidebar .brand h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .sidebar .brand p {
+      font-size: 11px;
+      opacity: 0.75;
+      margin-top: 4px;
+    }
+    .nav {
+      flex: 1;
+      padding: 12px 0;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.08); }
+    .nav-item.active {
+      background: rgba(255,255,255,0.12);
+      border-left-color: var(--accent);
+    }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar .footer {
+      padding: 12px 20px;
+      font-size: 11px;
+      opacity: 0.6;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      padding: 24px 32px;
+      overflow-x: hidden;
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .page-header .subtitle {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 3px;
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn:hover { background: #f0f2f5; }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+      border-color: var(--danger);
+    }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon {
+      padding: 6px 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-light);
+      border-radius: 4px;
+    }
+    .btn-icon:hover { background: #f0f2f5; color: var(--text); }
+
+    /* CARDS */
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* KPI GRID (Dashboard) */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card .label {
+      font-size: 12px;
+      color: var(--text-light);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kpi-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 8px;
+      color: var(--text);
+    }
+    .kpi-card .sub {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 6px;
+    }
+    .kpi-card .badge-corner {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      font-size: 18px;
+      opacity: 0.5;
+    }
+    .kpi-card.success { border-top: 3px solid var(--success); }
+    .kpi-card.warn { border-top: 3px solid var(--warn); }
+    .kpi-card.danger { border-top: 3px solid var(--danger); }
+    .kpi-card.info { border-top: 3px solid var(--info); }
+
+    /* Progress bar */
+    .progress {
+      height: 8px;
+      background: #ecf0f1;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s;
+    }
+    .progress-bar.warn { background: var(--warn); }
+    .progress-bar.danger { background: var(--danger); }
+    .progress-bar.success { background: var(--success); }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-light);
+      background: #fafbfc;
+      font-weight: 700;
+    }
+    tr:hover td { background: #fafbfc; }
+    .empty-row td {
+      text-align: center;
+      color: var(--text-light);
+      padding: 28px;
+      font-style: italic;
+    }
+
+    /* BADGES */
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .badge-todo { background: #ecf0f1; color: #7f8c8d; }
+    .badge-doing { background: #d6eaf8; color: #2980b9; }
+    .badge-done { background: #d4efdf; color: #1e8449; }
+    .badge-blocked { background: #fadbd8; color: #c0392b; }
+    .badge-low { background: #ecf0f1; color: #7f8c8d; }
+    .badge-mid { background: #fdebd0; color: #b9770e; }
+    .badge-high { background: #fadbd8; color: #c0392b; }
+    .badge-overdue { background: var(--danger); color: white; }
+
+    /* FORM */
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: white;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(45,110,45,0.15);
+    }
+
+    /* MODAL */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 700; }
+    .modal-body { padding: 22px; }
+    .modal-footer {
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* CHART */
+    .chart-bar-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      height: 180px;
+      padding: 10px 0 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .chart-bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .chart-bar {
+      width: 100%;
+      max-width: 40px;
+      background: var(--primary);
+      border-radius: 4px 4px 0 0;
+      position: relative;
+      transition: all 0.3s;
+    }
+    .chart-bar.target { background: var(--accent); opacity: 0.7; }
+    .chart-bar-label {
+      font-size: 10px;
+      color: var(--text-light);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+    .chart-bar-value {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .chart-legend {
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 8px;
+    }
+    .chart-legend .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* GANTT */
+    .gantt {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .gantt-row {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      min-height: 36px;
+    }
+    .gantt-row:last-child { border-bottom: none; }
+    .gantt-label {
+      width: 180px;
+      flex-shrink: 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #fafbfc;
+      border-right: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .gantt-track {
+      flex: 1;
+      position: relative;
+      min-width: 600px;
+    }
+    .gantt-header {
+      background: #f0f2f5;
+      font-weight: 700;
+    }
+    .gantt-header .gantt-label { background: #f0f2f5; }
+    .gantt-day {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-right: 1px solid #eef1f4;
+      font-size: 9px;
+      color: var(--text-light);
+      padding-top: 4px;
+      text-align: center;
+    }
+    .gantt-day.weekend { background: #fafbfc; }
+    .gantt-day.today { background: rgba(243,156,18,0.12); }
+    .gantt-bar {
+      position: absolute;
+      top: 8px;
+      height: 20px;
+      background: var(--primary);
+      border-radius: 4px;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .gantt-bar.done { background: var(--success); }
+    .gantt-bar.blocked { background: var(--danger); }
+    .gantt-bar.todo { background: var(--text-light); }
+
+    /* FILTERS */
+    .filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .filters select, .filters input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      background: white;
+      color: var(--text);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .sidebar { width: 64px; }
+      .sidebar .brand p, .nav-item span:not(.nav-icon), .sidebar .footer { display: none; }
+      .main { padding: 18px; }
+    }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .text-muted { color: var(--text-light); }
+    .text-success { color: var(--success); }
+    .text-danger { color: var(--danger); }
+    .text-warn { color: #b9770e; }
+
+    .stat-inline {
+      display: inline-flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-light);
+    }
+    .stat-inline b { color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>📋 Schedule</h1>
+      <p>タスク・進捗・KPI</p>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">📊</span><span>ダッシュボード</span>
+      </div>
+      <div class="nav-item" data-page="tasks">
+        <span class="nav-icon">✅</span><span>タスク管理</span>
+      </div>
+      <div class="nav-item" data-page="progress">
+        <span class="nav-icon">📈</span><span>進捗管理</span>
+      </div>
+      <div class="nav-item" data-page="kpi">
+        <span class="nav-icon">🎯</span><span>KPI管理</span>
+      </div>
+      <div class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span><span>設定</span>
+      </div>
+    </nav>
+    <div class="footer">
+      <div>v1.0.0</div>
+      <div id="storage-info">ローカル保存</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- DASHBOARD PAGE -->
+    <section class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <h2>ダッシュボード</h2>
+          <div class="subtitle">全体の状況をひと目で確認</div>
+        </div>
+        <div>
+          <button class="btn" id="btn-export">📥 エクスポート</button>
+          <button class="btn" id="btn-import">📤 インポート</button>
+          <input type="file" id="import-file" accept="application/json" style="display:none;">
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="dashboard-kpis"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📌 直近のタスク (期限7日以内)</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>タスク名</th><th>期限</th><th>状態</th></tr>
+              </thead>
+              <tbody id="upcoming-tasks"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 KPI達成状況</div>
+          <div id="kpi-summary"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 タスクステータス分布</div>
+        <div class="chart-bar-wrap" id="status-chart"></div>
+        <div class="chart-legend" id="status-legend"></div>
+      </div>
+    </section>
+
+    <!-- TASKS PAGE -->
+    <section class="page" id="page-tasks">
+      <div class="page-header">
+        <div>
+          <h2>タスク管理</h2>
+          <div class="subtitle">タスクを追加・編集・削除できます</div>
+        </div>
+        <button class="btn btn-primary" onclick="openTaskModal()">+ 新規タスク</button>
+      </div>
+
+      <div class="card">
+        <div class="filters">
+          <input type="text" id="filter-search" placeholder="🔍 検索...">
+          <select id="filter-status">
+            <option value="">全ステータス</option>
+            <option value="todo">未着手</option>
+            <option value="doing">進行中</option>
+            <option value="done">完了</option>
+            <option value="blocked">ブロック中</option>
+          </select>
+          <select id="filter-priority">
+            <option value="">全優先度</option>
+            <option value="high">高</option>
+            <option value="mid">中</option>
+            <option value="low">低</option>
+          </select>
+          <select id="filter-assignee">
+            <option value="">全担当者</option>
+          </select>
+          <select id="filter-kpi">
+            <option value="">全KPI</option>
+          </select>
+          <button class="btn btn-sm" id="btn-clear-filters">クリア</button>
+        </div>
+        <div class="stat-inline" id="tasks-stat" style="margin-bottom: 10px;"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>タスク名</th>
+                <th>担当者</th>
+                <th>優先度</th>
+                <th>状態</th>
+                <th>進捗</th>
+                <th>開始日</th>
+                <th>期限</th>
+                <th>KPI</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tasks-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROGRESS PAGE -->
+    <section class="page" id="page-progress">
+      <div class="page-header">
+        <div>
+          <h2>進捗管理</h2>
+          <div class="subtitle">ガントチャートと進捗グラフで状況を可視化</div>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="progress-kpis"></div>
+
+      <div class="card">
+        <div class="card-title">📅 ガントチャート</div>
+        <div class="filters">
+          <label style="font-size:12px;color:var(--text-light);">表示開始日:</label>
+          <input type="date" id="gantt-start">
+          <label style="font-size:12px;color:var(--text-light);">日数:</label>
+          <select id="gantt-range">
+            <option value="14">14日</option>
+            <option value="30" selected>30日</option>
+            <option value="60">60日</option>
+            <option value="90">90日</option>
+          </select>
+        </div>
+        <div class="gantt" id="gantt-container"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">👤 担当者別進捗</div>
+          <div id="assignee-progress"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔥 注意が必要なタスク</div>
+          <div id="risk-tasks"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI PAGE -->
+    <section class="page" id="page-kpi">
+      <div class="page-header">
+        <div>
+          <h2>KPI管理</h2>
+          <div class="subtitle">目標値に対する達成度を管理</div>
+        </div>
+        <button class="btn btn-primary" onclick="openKpiModal()">+ 新規KPI</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📈 KPI一覧</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>KPI名</th>
+                <th>カテゴリ</th>
+                <th>目標</th>
+                <th>実績</th>
+                <th>達成率</th>
+                <th>期限</th>
+                <th>状態</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="kpi-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 KPI達成度グラフ</div>
+        <div class="chart-bar-wrap" id="kpi-chart"></div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background:var(--primary);"></span>実績</span>
+          <span><span class="dot" style="background:var(--accent);"></span>目標</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS PAGE -->
+    <section class="page" id="page-settings">
+      <div class="page-header">
+        <div>
+          <h2>設定</h2>
+          <div class="subtitle">担当者リストやデータの管理</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👥 担当者リスト</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>新しい担当者名</label>
+            <input type="text" id="new-member" placeholder="例: 山田太郎">
+          </div>
+          <div class="form-group" style="align-self:flex-end;">
+            <button class="btn btn-primary" onclick="addMember()">+ 追加</button>
+          </div>
+        </div>
+        <div id="members-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗑️ データ管理</div>
+        <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">
+          すべてのデータはブラウザのローカルストレージに保存されます。バックアップにはエクスポートをご利用ください。
+        </p>
+        <button class="btn" onclick="loadSampleData()">📦 サンプルデータを読み込む</button>
+        <button class="btn btn-danger" onclick="clearAllData()">🗑️ 全データを削除</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-backdrop" id="task-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="task-modal-title">新規タスク</h3>
+      <button class="btn-icon" onclick="closeModal('task-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="task-id">
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>タスク名 *</label>
+          <input type="text" id="task-title" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>説明</label>
+          <textarea id="task-desc" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>担当者</label>
+          <select id="task-assignee"></select>
+        </div>
+        <div class="form-group">
+          <label>優先度</label>
+          <select id="task-priority">
+            <option value="low">低</option>
+            <option value="mid" selected>中</option>
+            <option value="high">高</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>状態</label>
+          <select id="task-status">
+            <option value="todo">未着手</option>
+            <option value="doing">進行中</option>
+            <option value="done">完了</option>
+            <option value="blocked">ブロック中</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始日</label>
+          <input type="date" id="task-start">
+        </div>
+        <div class="form-group">
+          <label>期限</label>
+          <input type="date" id="task-due">
+        </div>
+        <div class="form-group">
+          <label>進捗 (%)</label>
+          <input type="number" id="task-progress" min="0" max="100" step="5" value="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>関連KPI</label>
+          <select id="task-kpi">
+            <option value="">なし</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-delete-task" style="margin-right:auto;display:none;" onclick="deleteCurrentTask()">削除</button>
+      <button class="btn" onclick="closeModal('task-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveTask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- KPI MODAL -->
+<div class="modal-backdrop" id="kpi-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="kpi-modal-title">新規KPI</h3>
+      <button class="btn-icon" onclick="closeModal('kpi-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="kpi-id">
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>KPI名 *</label>
+          <input type="text" id="kpi-name" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <input type="text" id="kpi-category" placeholder="例: 営業, 開発">
+        </div>
+        <div class="form-group">
+          <label>単位</label>
+          <input type="text" id="kpi-unit" placeholder="例: 件, %, 万円">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>目標値 *</label>
+          <input type="number" id="kpi-target" step="any" required>
+        </div>
+        <div class="form-group">
+          <label>実績値</label>
+          <input type="number" id="kpi-actual" step="any" value="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>期限</label>
+          <input type="date" id="kpi-deadline">
+        </div>
+        <div class="form-group">
+          <label>方向</label>
+          <select id="kpi-direction">
+            <option value="up">大きいほど良い</option>
+            <option value="down">小さいほど良い</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-delete-kpi" style="margin-right:auto;display:none;" onclick="deleteCurrentKpi()">削除</button>
+      <button class="btn" onclick="closeModal('kpi-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveKpi()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   STATE & STORAGE
+   ============================================================ */
+const STORAGE_KEY = 'schedule_tool_v1';
+const state = {
+  tasks: [],
+  kpis: [],
+  members: ['未割当'],
+  filters: { search: '', status: '', priority: '', assignee: '', kpi: '' },
+  ganttStart: null,
+  ganttRange: 30,
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      state.tasks = d.tasks || [];
+      state.kpis = d.kpis || [];
+      state.members = d.members && d.members.length ? d.members : ['未割当'];
+    }
+  } catch (e) { console.error(e); }
+}
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    tasks: state.tasks, kpis: state.kpis, members: state.members,
+  }));
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const today = () => new Date().toISOString().slice(0, 10);
+const fmtDate = (s) => s ? s.replace(/-/g, '/').slice(5) : '-';
+const daysDiff = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+const isOverdue = (t) => t.due && t.status !== 'done' && new Date(t.due) < new Date(today());
+
+function statusLabel(s) {
+  return { todo: '未着手', doing: '進行中', done: '完了', blocked: 'ブロック中' }[s] || s;
+}
+function priorityLabel(p) {
+  return { high: '高', mid: '中', low: '低' }[p] || p;
+}
+function statusBadge(s) {
+  return `<span class="badge badge-${s}">${statusLabel(s)}</span>`;
+}
+function priorityBadge(p) {
+  return `<span class="badge badge-${p}">${priorityLabel(p)}</span>`;
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('page-' + el.dataset.page).classList.add('active');
+    renderAll();
+  });
+});
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(b => {
+  b.addEventListener('click', e => { if (e.target === b) b.classList.remove('open'); });
+});
+
+/* ============================================================
+   TASK CRUD
+   ============================================================ */
+function openTaskModal(id) {
+  const isNew = !id;
+  document.getElementById('task-modal-title').textContent = isNew ? '新規タスク' : 'タスクを編集';
+  document.getElementById('btn-delete-task').style.display = isNew ? 'none' : 'inline-flex';
+  populateMemberSelect('task-assignee');
+  populateKpiSelect('task-kpi');
+  if (isNew) {
+    document.getElementById('task-id').value = '';
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-desc').value = '';
+    document.getElementById('task-assignee').value = state.members[0] || '';
+    document.getElementById('task-priority').value = 'mid';
+    document.getElementById('task-status').value = 'todo';
+    document.getElementById('task-start').value = today();
+    document.getElementById('task-due').value = '';
+    document.getElementById('task-progress').value = 0;
+    document.getElementById('task-kpi').value = '';
+  } else {
+    const t = state.tasks.find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('task-id').value = t.id;
+    document.getElementById('task-title').value = t.title;
+    document.getElementById('task-desc').value = t.desc || '';
+    document.getElementById('task-assignee').value = t.assignee || '';
+    document.getElementById('task-priority').value = t.priority;
+    document.getElementById('task-status').value = t.status;
+    document.getElementById('task-start').value = t.start || '';
+    document.getElementById('task-due').value = t.due || '';
+    document.getElementById('task-progress').value = t.progress || 0;
+    document.getElementById('task-kpi').value = t.kpiId || '';
+  }
+  openModal('task-modal');
+}
+
+function saveTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { alert('タスク名を入力してください'); return; }
+  const id = document.getElementById('task-id').value;
+  const data = {
+    id: id || uid(),
+    title,
+    desc: document.getElementById('task-desc').value.trim(),
+    assignee: document.getElementById('task-assignee').value,
+    priority: document.getElementById('task-priority').value,
+    status: document.getElementById('task-status').value,
+    start: document.getElementById('task-start').value,
+    due: document.getElementById('task-due').value,
+    progress: Math.max(0, Math.min(100, parseInt(document.getElementById('task-progress').value) || 0)),
+    kpiId: document.getElementById('task-kpi').value,
+    updatedAt: new Date().toISOString(),
+  };
+  if (data.status === 'done') data.progress = 100;
+  if (id) {
+    state.tasks = state.tasks.map(t => t.id === id ? { ...t, ...data } : t);
+  } else {
+    data.createdAt = new Date().toISOString();
+    state.tasks.push(data);
+  }
+  save();
+  closeModal('task-modal');
+  renderAll();
+}
+
+function deleteCurrentTask() {
+  const id = document.getElementById('task-id').value;
+  if (!id) return;
+  if (!confirm('このタスクを削除しますか？')) return;
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  save();
+  closeModal('task-modal');
+  renderAll();
+}
+
+/* ============================================================
+   KPI CRUD
+   ============================================================ */
+function openKpiModal(id) {
+  const isNew = !id;
+  document.getElementById('kpi-modal-title').textContent = isNew ? '新規KPI' : 'KPIを編集';
+  document.getElementById('btn-delete-kpi').style.display = isNew ? 'none' : 'inline-flex';
+  if (isNew) {
+    document.getElementById('kpi-id').value = '';
+    document.getElementById('kpi-name').value = '';
+    document.getElementById('kpi-category').value = '';
+    document.getElementById('kpi-unit').value = '';
+    document.getElementById('kpi-target').value = '';
+    document.getElementById('kpi-actual').value = 0;
+    document.getElementById('kpi-deadline').value = '';
+    document.getElementById('kpi-direction').value = 'up';
+  } else {
+    const k = state.kpis.find(k => k.id === id);
+    if (!k) return;
+    document.getElementById('kpi-id').value = k.id;
+    document.getElementById('kpi-name').value = k.name;
+    document.getElementById('kpi-category').value = k.category || '';
+    document.getElementById('kpi-unit').value = k.unit || '';
+    document.getElementById('kpi-target').value = k.target;
+    document.getElementById('kpi-actual').value = k.actual || 0;
+    document.getElementById('kpi-deadline').value = k.deadline || '';
+    document.getElementById('kpi-direction').value = k.direction || 'up';
+  }
+  openModal('kpi-modal');
+}
+
+function saveKpi() {
+  const name = document.getElementById('kpi-name').value.trim();
+  const target = parseFloat(document.getElementById('kpi-target').value);
+  if (!name) { alert('KPI名を入力してください'); return; }
+  if (isNaN(target)) { alert('目標値を入力してください'); return; }
+  const id = document.getElementById('kpi-id').value;
+  const data = {
+    id: id || uid(),
+    name,
+    category: document.getElementById('kpi-category').value.trim(),
+    unit: document.getElementById('kpi-unit').value.trim(),
+    target,
+    actual: parseFloat(document.getElementById('kpi-actual').value) || 0,
+    deadline: document.getElementById('kpi-deadline').value,
+    direction: document.getElementById('kpi-direction').value,
+    updatedAt: new Date().toISOString(),
+  };
+  if (id) {
+    state.kpis = state.kpis.map(k => k.id === id ? { ...k, ...data } : k);
+  } else {
+    data.createdAt = new Date().toISOString();
+    state.kpis.push(data);
+  }
+  save();
+  closeModal('kpi-modal');
+  renderAll();
+}
+
+function deleteCurrentKpi() {
+  const id = document.getElementById('kpi-id').value;
+  if (!id) return;
+  if (!confirm('このKPIを削除しますか？')) return;
+  state.kpis = state.kpis.filter(k => k.id !== id);
+  state.tasks = state.tasks.map(t => t.kpiId === id ? { ...t, kpiId: '' } : t);
+  save();
+  closeModal('kpi-modal');
+  renderAll();
+}
+
+function kpiAchievement(k) {
+  if (!k.target) return 0;
+  if (k.direction === 'down') {
+    if (k.actual <= 0) return 100;
+    return Math.max(0, Math.min(200, (k.target / k.actual) * 100));
+  }
+  return Math.max(0, Math.min(200, (k.actual / k.target) * 100));
+}
+
+/* ============================================================
+   POPULATORS
+   ============================================================ */
+function populateMemberSelect(id, includeAll) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  if (includeAll) {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = '全担当者';
+    el.appendChild(o);
+  }
+  state.members.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    el.appendChild(o);
+  });
+}
+function populateKpiSelect(id, includeAll) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = ''; none.textContent = includeAll ? '全KPI' : 'なし';
+  el.appendChild(none);
+  state.kpis.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k.id; o.textContent = k.name;
+    el.appendChild(o);
+  });
+}
+
+/* ============================================================
+   RENDER: DASHBOARD
+   ============================================================ */
+function renderDashboard() {
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t => t.status === 'done').length;
+  const doing = state.tasks.filter(t => t.status === 'doing').length;
+  const overdue = state.tasks.filter(isOverdue).length;
+  const completion = total ? Math.round((done / total) * 100) : 0;
+  const avgProgress = total
+    ? Math.round(state.tasks.reduce((s, t) => s + (t.progress || 0), 0) / total)
+    : 0;
+  const totalKpi = state.kpis.length;
+  const onTrackKpi = state.kpis.filter(k => kpiAchievement(k) >= 100).length;
+
+  const cards = [
+    { label: '完了率', value: completion + '%', sub: `${done} / ${total} タスク`, icon: '✅', cls: completion >= 70 ? 'success' : completion >= 40 ? 'warn' : 'danger' },
+    { label: '進行中タスク', value: doing, sub: `平均進捗 ${avgProgress}%`, icon: '🔄', cls: 'info' },
+    { label: '期限超過', value: overdue, sub: overdue ? '対応が必要です' : '問題なし', icon: '⚠️', cls: overdue ? 'danger' : 'success' },
+    { label: 'KPI達成', value: `${onTrackKpi} / ${totalKpi}`, sub: totalKpi ? `${Math.round(onTrackKpi/totalKpi*100)}% 達成` : 'KPI未登録', icon: '🎯', cls: onTrackKpi === totalKpi && totalKpi ? 'success' : 'warn' },
+  ];
+  document.getElementById('dashboard-kpis').innerHTML = cards.map(c => `
+    <div class="kpi-card ${c.cls}">
+      <div class="badge-corner">${c.icon}</div>
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>
+  `).join('');
+
+  // Upcoming tasks
+  const upcoming = state.tasks
+    .filter(t => t.status !== 'done' && t.due)
+    .filter(t => {
+      const d = daysDiff(today(), t.due);
+      return d <= 7;
+    })
+    .sort((a, b) => new Date(a.due) - new Date(b.due))
+    .slice(0, 8);
+  const upEl = document.getElementById('upcoming-tasks');
+  if (!upcoming.length) {
+    upEl.innerHTML = '<tr class="empty-row"><td colspan="3">直近のタスクはありません</td></tr>';
+  } else {
+    upEl.innerHTML = upcoming.map(t => {
+      const od = isOverdue(t);
+      return `<tr>
+        <td>${escapeHtml(t.title)}</td>
+        <td>${od ? '<span class="badge badge-overdue">期限超過</span> ' : ''}${fmtDate(t.due)}</td>
+        <td>${statusBadge(t.status)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // KPI summary
+  const kpiEl = document.getElementById('kpi-summary');
+  if (!state.kpis.length) {
+    kpiEl.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px;font-style:italic;">KPIが登録されていません</p>';
+  } else {
+    kpiEl.innerHTML = state.kpis.slice(0, 5).map(k => {
+      const a = kpiAchievement(k);
+      const cls = a >= 100 ? 'success' : a >= 70 ? '' : a >= 40 ? 'warn' : 'danger';
+      return `
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+            <span><b>${escapeHtml(k.name)}</b></span>
+            <span class="text-muted">${k.actual}/${k.target}${k.unit || ''} (${Math.round(a)}%)</span>
+          </div>
+          <div class="progress"><div class="progress-bar ${cls}" style="width:${Math.min(100, a)}%"></div></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Status chart
+  const counts = { todo: 0, doing: 0, done: 0, blocked: 0 };
+  state.tasks.forEach(t => counts[t.status]++);
+  const max = Math.max(1, ...Object.values(counts));
+  const colors = { todo: '#95a5a6', doing: '#3498db', done: '#27ae60', blocked: '#e74c3c' };
+  document.getElementById('status-chart').innerHTML = Object.keys(counts).map(k => `
+    <div class="chart-bar-col">
+      <div class="chart-bar-value">${counts[k]}</div>
+      <div class="chart-bar" style="height:${(counts[k]/max)*100}%;background:${colors[k]};"></div>
+      <div class="chart-bar-label">${statusLabel(k)}</div>
+    </div>
+  `).join('');
+  document.getElementById('status-legend').innerHTML = Object.keys(counts).map(k =>
+    `<span><span class="dot" style="background:${colors[k]};"></span>${statusLabel(k)}</span>`
+  ).join('');
+}
+
+/* ============================================================
+   RENDER: TASKS
+   ============================================================ */
+function renderTasks() {
+  populateMemberSelect('filter-assignee', true);
+  populateKpiSelect('filter-kpi', true);
+  document.getElementById('filter-status').value = state.filters.status;
+  document.getElementById('filter-priority').value = state.filters.priority;
+  document.getElementById('filter-assignee').value = state.filters.assignee;
+  document.getElementById('filter-kpi').value = state.filters.kpi;
+
+  const filtered = state.tasks.filter(t => {
+    if (state.filters.search) {
+      const q = state.filters.search.toLowerCase();
+      if (!t.title.toLowerCase().includes(q) && !(t.desc || '').toLowerCase().includes(q)) return false;
+    }
+    if (state.filters.status && t.status !== state.filters.status) return false;
+    if (state.filters.priority && t.priority !== state.filters.priority) return false;
+    if (state.filters.assignee && t.assignee !== state.filters.assignee) return false;
+    if (state.filters.kpi && t.kpiId !== state.filters.kpi) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('tasks-table');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">該当するタスクがありません</td></tr>';
+  } else {
+    tbody.innerHTML = filtered
+      .sort((a, b) => {
+        if (a.status === 'done' && b.status !== 'done') return 1;
+        if (b.status === 'done' && a.status !== 'done') return -1;
+        if (a.due && b.due) return new Date(a.due) - new Date(b.due);
+        if (a.due) return -1;
+        if (b.due) return 1;
+        return 0;
+      })
+      .map(t => {
+        const od = isOverdue(t);
+        const kpi = state.kpis.find(k => k.id === t.kpiId);
+        const progressCls = t.status === 'done' ? 'success' : od ? 'danger' : t.progress < 30 ? 'warn' : '';
+        return `<tr onclick="openTaskModal('${t.id}')" style="cursor:pointer;">
+          <td><b>${escapeHtml(t.title)}</b>${t.desc ? `<div class="text-muted" style="font-size:11px;margin-top:2px;">${escapeHtml(t.desc).slice(0,60)}</div>` : ''}</td>
+          <td>${escapeHtml(t.assignee || '-')}</td>
+          <td>${priorityBadge(t.priority)}</td>
+          <td>${statusBadge(t.status)}</td>
+          <td style="min-width:120px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress" style="flex:1;margin-top:0;"><div class="progress-bar ${progressCls}" style="width:${t.progress||0}%"></div></div>
+              <span style="font-size:11px;color:var(--text-light);min-width:30px;">${t.progress||0}%</span>
+            </div>
+          </td>
+          <td>${fmtDate(t.start)}</td>
+          <td>${od ? `<span class="badge badge-overdue">${fmtDate(t.due)}</span>` : fmtDate(t.due)}</td>
+          <td>${kpi ? `<span class="text-muted" style="font-size:11px;">${escapeHtml(kpi.name)}</span>` : '-'}</td>
+          <td onclick="event.stopPropagation();">
+            <button class="btn-icon" onclick="openTaskModal('${t.id}')" title="編集">✏️</button>
+          </td>
+        </tr>`;
+      }).join('');
+  }
+  const totalShown = filtered.length;
+  const completedShown = filtered.filter(t => t.status === 'done').length;
+  document.getElementById('tasks-stat').innerHTML =
+    `表示: <b>${totalShown}</b> 件 / 完了: <b>${completedShown}</b> / 進行中: <b>${filtered.filter(t=>t.status==='doing').length}</b> / 期限超過: <b class="text-danger">${filtered.filter(isOverdue).length}</b>`;
+}
+
+/* ============================================================
+   RENDER: PROGRESS / GANTT
+   ============================================================ */
+function renderProgress() {
+  // KPIs (top of progress page)
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t => t.status === 'done').length;
+  const blocked = state.tasks.filter(t => t.status === 'blocked').length;
+  const avgProgress = total
+    ? Math.round(state.tasks.reduce((s, t) => s + (t.progress || 0), 0) / total)
+    : 0;
+  const cards = [
+    { label: '全タスク', value: total, sub: `完了 ${done}`, icon: '📋', cls: 'info' },
+    { label: '平均進捗', value: avgProgress + '%', sub: '全タスクの平均', icon: '📊', cls: avgProgress >= 70 ? 'success' : 'warn' },
+    { label: 'ブロック中', value: blocked, sub: blocked ? '要対応' : '問題なし', icon: '🚫', cls: blocked ? 'danger' : 'success' },
+    { label: '今週の期限', value: state.tasks.filter(t => t.due && t.status !== 'done' && daysDiff(today(), t.due) <= 7 && daysDiff(today(), t.due) >= 0).length, sub: '7日以内', icon: '📅', cls: 'warn' },
+  ];
+  document.getElementById('progress-kpis').innerHTML = cards.map(c => `
+    <div class="kpi-card ${c.cls}">
+      <div class="badge-corner">${c.icon}</div>
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>
+  `).join('');
+
+  // Gantt
+  if (!state.ganttStart) {
+    state.ganttStart = today();
+    document.getElementById('gantt-start').value = state.ganttStart;
+  }
+  renderGantt();
+
+  // Assignee progress
+  const byAssignee = {};
+  state.tasks.forEach(t => {
+    const a = t.assignee || '未割当';
+    if (!byAssignee[a]) byAssignee[a] = { total: 0, done: 0, progress: 0 };
+    byAssignee[a].total++;
+    if (t.status === 'done') byAssignee[a].done++;
+    byAssignee[a].progress += (t.progress || 0);
+  });
+  const ae = document.getElementById('assignee-progress');
+  const ks = Object.keys(byAssignee);
+  if (!ks.length) {
+    ae.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px;font-style:italic;">タスクがありません</p>';
+  } else {
+    ae.innerHTML = ks.map(a => {
+      const d = byAssignee[a];
+      const avg = d.total ? Math.round(d.progress / d.total) : 0;
+      const cls = avg >= 70 ? 'success' : avg >= 40 ? '' : 'warn';
+      return `
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+            <b>${escapeHtml(a)}</b>
+            <span class="text-muted">${d.done}/${d.total} 完了 (平均 ${avg}%)</span>
+          </div>
+          <div class="progress"><div class="progress-bar ${cls}" style="width:${avg}%"></div></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Risk tasks
+  const risk = state.tasks.filter(t => {
+    if (t.status === 'done') return false;
+    if (isOverdue(t)) return true;
+    if (t.status === 'blocked') return true;
+    if (t.priority === 'high' && t.progress < 50) return true;
+    if (t.due && daysDiff(today(), t.due) <= 3 && t.progress < 80) return true;
+    return false;
+  }).slice(0, 8);
+  const re = document.getElementById('risk-tasks');
+  if (!risk.length) {
+    re.innerHTML = '<p class="text-muted" style="text-align:center;padding:20px;font-style:italic;">注意が必要なタスクはありません 👍</p>';
+  } else {
+    re.innerHTML = risk.map(t => {
+      let reason = [];
+      if (isOverdue(t)) reason.push('<span class="text-danger">期限超過</span>');
+      if (t.status === 'blocked') reason.push('<span class="text-danger">ブロック中</span>');
+      if (t.priority === 'high' && t.progress < 50) reason.push('<span class="text-warn">優先度高×進捗低</span>');
+      if (t.due && daysDiff(today(), t.due) <= 3 && t.progress < 80) reason.push('<span class="text-warn">期限直前</span>');
+      return `
+        <div style="padding:10px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;cursor:pointer;" onclick="openTaskModal('${t.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <b style="font-size:13px;">${escapeHtml(t.title)}</b>
+            ${statusBadge(t.status)}
+          </div>
+          <div class="text-muted" style="font-size:11px;margin-top:4px;">
+            ${escapeHtml(t.assignee || '-')} | 期限 ${fmtDate(t.due)} | 進捗 ${t.progress||0}%
+          </div>
+          <div style="font-size:11px;margin-top:4px;">${reason.join(' • ')}</div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+function renderGantt() {
+  const start = state.ganttStart || today();
+  const range = state.ganttRange;
+  const startD = new Date(start);
+  const todayD = new Date(today());
+
+  const days = [];
+  for (let i = 0; i < range; i++) {
+    const d = new Date(startD);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+  const dayWidth = Math.max(20, Math.min(40, 800 / range));
+  const trackWidth = dayWidth * range;
+
+  // Header
+  let html = `<div class="gantt-row gantt-header">
+    <div class="gantt-label">タスク</div>
+    <div class="gantt-track" style="min-width:${trackWidth}px;height:32px;">`;
+  days.forEach((d, i) => {
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const isToday = d.toISOString().slice(0, 10) === today();
+    html += `<div class="gantt-day ${isWeekend ? 'weekend' : ''} ${isToday ? 'today' : ''}" style="left:${i*dayWidth}px;width:${dayWidth}px;">
+      ${d.getDate()}${i===0 || d.getDate()===1 ? `<br><span style="font-size:8px;">${d.getMonth()+1}月</span>` : ''}
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // Rows
+  const visibleTasks = state.tasks.filter(t => t.start || t.due);
+  if (!visibleTasks.length) {
+    html += `<div class="gantt-row"><div class="gantt-label">-</div><div class="gantt-track" style="min-width:${trackWidth}px;display:flex;align-items:center;justify-content:center;padding:20px;color:var(--text-light);font-style:italic;">日付の設定されたタスクがありません</div></div>`;
+  } else {
+    visibleTasks.forEach(t => {
+      const ts = t.start ? new Date(t.start) : (t.due ? new Date(t.due) : null);
+      const td = t.due ? new Date(t.due) : (t.start ? new Date(t.start) : null);
+      if (!ts || !td) return;
+      const offsetDays = Math.round((ts - startD) / 86400000);
+      const durationDays = Math.max(1, Math.round((td - ts) / 86400000) + 1);
+      const endOffset = offsetDays + durationDays;
+      if (endOffset < 0 || offsetDays >= range) {
+        html += `<div class="gantt-row">
+          <div class="gantt-label" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+          <div class="gantt-track" style="min-width:${trackWidth}px;">
+            ${days.map((d, i) => {
+              const wd = d.getDay() === 0 || d.getDay() === 6;
+              const isT = d.toISOString().slice(0,10) === today();
+              return `<div class="gantt-day ${wd?'weekend':''} ${isT?'today':''}" style="left:${i*dayWidth}px;width:${dayWidth}px;"></div>`;
+            }).join('')}
+            <div style="position:absolute;left:10px;top:10px;font-size:10px;color:var(--text-light);">範囲外</div>
+          </div>
+        </div>`;
+        return;
+      }
+      const left = Math.max(0, offsetDays) * dayWidth;
+      const clipStart = Math.max(0, -offsetDays);
+      const width = Math.min(range - Math.max(0, offsetDays), durationDays - clipStart) * dayWidth;
+      html += `<div class="gantt-row">
+        <div class="gantt-label" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+        <div class="gantt-track" style="min-width:${trackWidth}px;">
+          ${days.map((d, i) => {
+            const wd = d.getDay() === 0 || d.getDay() === 6;
+            const isT = d.toISOString().slice(0,10) === today();
+            return `<div class="gantt-day ${wd?'weekend':''} ${isT?'today':''}" style="left:${i*dayWidth}px;width:${dayWidth}px;"></div>`;
+          }).join('')}
+          <div class="gantt-bar ${t.status}" style="left:${left}px;width:${width}px;" onclick="openTaskModal('${t.id}')" title="${escapeHtml(t.title)} (${t.progress||0}%)">
+            ${width > 50 ? escapeHtml(t.title).slice(0, 20) + ' ' + (t.progress||0) + '%' : (t.progress||0) + '%'}
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('gantt-container').innerHTML = html;
+}
+
+/* ============================================================
+   RENDER: KPI
+   ============================================================ */
+function renderKpi() {
+  const tbody = document.getElementById('kpi-table');
+  if (!state.kpis.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">KPIが登録されていません</td></tr>';
+  } else {
+    tbody.innerHTML = state.kpis.map(k => {
+      const a = kpiAchievement(k);
+      const cls = a >= 100 ? 'success' : a >= 70 ? '' : a >= 40 ? 'warn' : 'danger';
+      const dl = k.deadline ? (new Date(k.deadline) < new Date(today()) && a < 100 ? `<span class="badge badge-overdue">${fmtDate(k.deadline)}</span>` : fmtDate(k.deadline)) : '-';
+      const statusBadgeHtml = a >= 100 ? '<span class="badge badge-done">達成</span>' : a >= 70 ? '<span class="badge badge-doing">順調</span>' : a >= 40 ? '<span class="badge badge-mid">注意</span>' : '<span class="badge badge-blocked">遅延</span>';
+      const linked = state.tasks.filter(t => t.kpiId === k.id).length;
+      return `<tr onclick="openKpiModal('${k.id}')" style="cursor:pointer;">
+        <td><b>${escapeHtml(k.name)}</b>${linked ? `<div class="text-muted" style="font-size:11px;">関連タスク: ${linked}件</div>` : ''}</td>
+        <td>${escapeHtml(k.category || '-')}</td>
+        <td>${k.target}${escapeHtml(k.unit || '')}</td>
+        <td>${k.actual}${escapeHtml(k.unit || '')}</td>
+        <td style="min-width:120px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="progress" style="flex:1;margin-top:0;"><div class="progress-bar ${cls}" style="width:${Math.min(100, a)}%"></div></div>
+            <span style="font-size:11px;color:var(--text-light);min-width:40px;">${Math.round(a)}%</span>
+          </div>
+        </td>
+        <td>${dl}</td>
+        <td>${statusBadgeHtml}</td>
+        <td onclick="event.stopPropagation();">
+          <button class="btn-icon" onclick="openKpiModal('${k.id}')">✏️</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Chart
+  const ch = document.getElementById('kpi-chart');
+  if (!state.kpis.length) {
+    ch.innerHTML = '<p class="text-muted" style="text-align:center;padding:30px;font-style:italic;width:100%;">KPIが登録されていません</p>';
+    return;
+  }
+  const max = Math.max(1, ...state.kpis.flatMap(k => [k.target, k.actual]));
+  ch.innerHTML = state.kpis.map(k => `
+    <div class="chart-bar-col">
+      <div class="chart-bar-value">${k.actual}</div>
+      <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:100%;">
+        <div class="chart-bar" style="height:${(k.actual/max)*100}%;width:18px;"></div>
+        <div class="chart-bar target" style="height:${(k.target/max)*100}%;width:18px;"></div>
+      </div>
+      <div class="chart-bar-label" title="${escapeHtml(k.name)}">${escapeHtml(k.name).slice(0, 8)}</div>
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+   RENDER: SETTINGS
+   ============================================================ */
+function renderSettings() {
+  const el = document.getElementById('members-list');
+  el.innerHTML = state.members.map(m => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">
+      <span>${escapeHtml(m)}</span>
+      ${m !== '未割当' ? `<button class="btn btn-sm btn-danger" onclick="removeMember('${escapeHtml(m).replace(/'/g, "\\'")}')">削除</button>` : '<span class="text-muted" style="font-size:11px;">(デフォルト)</span>'}
+    </div>
+  `).join('');
+}
+
+function addMember() {
+  const v = document.getElementById('new-member').value.trim();
+  if (!v) return;
+  if (state.members.includes(v)) { alert('既に存在します'); return; }
+  state.members.push(v);
+  save();
+  document.getElementById('new-member').value = '';
+  renderAll();
+}
+function removeMember(name) {
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  state.members = state.members.filter(m => m !== name);
+  state.tasks = state.tasks.map(t => t.assignee === name ? { ...t, assignee: '未割当' } : t);
+  save();
+  renderAll();
+}
+
+/* ============================================================
+   EXPORT / IMPORT / SAMPLE
+   ============================================================ */
+function exportData() {
+  const blob = new Blob([JSON.stringify({
+    tasks: state.tasks, kpis: state.kpis, members: state.members,
+    exportedAt: new Date().toISOString(),
+  }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `schedule-backup-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (!confirm('現在のデータを上書きします。続行しますか？')) return;
+      state.tasks = d.tasks || [];
+      state.kpis = d.kpis || [];
+      state.members = d.members && d.members.length ? d.members : ['未割当'];
+      save();
+      renderAll();
+      alert('インポートが完了しました');
+    } catch (err) {
+      alert('インポートに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+function loadSampleData() {
+  if (state.tasks.length || state.kpis.length) {
+    if (!confirm('現在のデータがあります。サンプルを追加しますか？')) return;
+  }
+  const t = today();
+  const d = (offset) => {
+    const dt = new Date(t);
+    dt.setDate(dt.getDate() + offset);
+    return dt.toISOString().slice(0, 10);
+  };
+  state.members = ['山田太郎', '鈴木花子', '佐藤次郎', '未割当'];
+  const k1 = { id: uid(), name: '新規顧客獲得', category: '営業', unit: '件', target: 50, actual: 32, direction: 'up', deadline: d(30), createdAt: new Date().toISOString() };
+  const k2 = { id: uid(), name: '月間売上', category: '営業', unit: '万円', target: 1000, actual: 720, direction: 'up', deadline: d(15), createdAt: new Date().toISOString() };
+  const k3 = { id: uid(), name: 'バグ件数', category: '開発', unit: '件', target: 5, actual: 8, direction: 'down', deadline: d(20), createdAt: new Date().toISOString() };
+  state.kpis = [k1, k2, k3];
+  state.tasks = [
+    { id: uid(), title: '顧客提案資料の作成', desc: '4社向けの提案資料', assignee: '山田太郎', priority: 'high', status: 'doing', start: d(-3), due: d(2), progress: 60, kpiId: k1.id, createdAt: new Date().toISOString() },
+    { id: uid(), title: 'デモ環境の構築', assignee: '佐藤次郎', priority: 'mid', status: 'todo', start: d(1), due: d(8), progress: 0, kpiId: k1.id, createdAt: new Date().toISOString() },
+    { id: uid(), title: '営業会議の準備', assignee: '鈴木花子', priority: 'high', status: 'doing', start: d(-1), due: d(1), progress: 80, kpiId: k2.id, createdAt: new Date().toISOString() },
+    { id: uid(), title: '請求書発行', assignee: '鈴木花子', priority: 'mid', status: 'done', start: d(-7), due: d(-2), progress: 100, kpiId: k2.id, createdAt: new Date().toISOString() },
+    { id: uid(), title: 'バグ修正 #1234', assignee: '佐藤次郎', priority: 'high', status: 'blocked', start: d(-5), due: d(-1), progress: 40, kpiId: k3.id, createdAt: new Date().toISOString() },
+    { id: uid(), title: 'コードレビュー', assignee: '佐藤次郎', priority: 'low', status: 'todo', start: d(3), due: d(10), progress: 0, kpiId: k3.id, createdAt: new Date().toISOString() },
+    { id: uid(), title: '月次レポート作成', assignee: '山田太郎', priority: 'mid', status: 'todo', start: d(5), due: d(12), progress: 0, kpiId: '', createdAt: new Date().toISOString() },
+    { id: uid(), title: 'チーム1on1', assignee: '山田太郎', priority: 'low', status: 'done', start: d(-3), due: d(-3), progress: 100, kpiId: '', createdAt: new Date().toISOString() },
+  ];
+  save();
+  renderAll();
+  alert('サンプルデータを読み込みました');
+}
+function clearAllData() {
+  if (!confirm('すべてのデータを削除します。本当によろしいですか？')) return;
+  if (!confirm('この操作は取り消せません。最終確認です。')) return;
+  state.tasks = [];
+  state.kpis = [];
+  state.members = ['未割当'];
+  save();
+  renderAll();
+}
+
+/* ============================================================
+   ESCAPE
+   ============================================================ */
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ============================================================
+   RENDER ALL
+   ============================================================ */
+function renderAll() {
+  renderDashboard();
+  renderTasks();
+  renderProgress();
+  renderKpi();
+  renderSettings();
+}
+
+/* ============================================================
+   EVENT LISTENERS
+   ============================================================ */
+document.getElementById('filter-search').addEventListener('input', e => {
+  state.filters.search = e.target.value;
+  renderTasks();
+});
+['filter-status','filter-priority','filter-assignee','filter-kpi'].forEach(id => {
+  document.getElementById(id).addEventListener('change', e => {
+    state.filters[id.replace('filter-', '')] = e.target.value;
+    renderTasks();
+  });
+});
+document.getElementById('btn-clear-filters').addEventListener('click', () => {
+  state.filters = { search: '', status: '', priority: '', assignee: '', kpi: '' };
+  document.getElementById('filter-search').value = '';
+  renderTasks();
+});
+document.getElementById('btn-export').addEventListener('click', exportData);
+document.getElementById('btn-import').addEventListener('click', () => document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', e => {
+  if (e.target.files[0]) importData(e.target.files[0]);
+  e.target.value = '';
+});
+document.getElementById('gantt-start').addEventListener('change', e => {
+  state.ganttStart = e.target.value;
+  renderGantt();
+});
+document.getElementById('gantt-range').addEventListener('change', e => {
+  state.ganttRange = parseInt(e.target.value);
+  renderGantt();
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+load();
+renderAll();
+</script>
+</body>
+</html>
