@@ -292,6 +292,36 @@
       border: 1px solid #e0f0e0; margin-top: 4px;
     }
 
+    /* HOLE CARD STATES */
+    .hole-card.inactive { opacity: 0.38; pointer-events: none; }
+    .hole-card.inactive .hole-card-body { display: flex; justify-content: center; padding: 10px 20px; }
+    .hole-card.confirmed { border-color: #a5d6a7; }
+    .hole-card.confirmed .hole-card-body { display: none; }
+
+    .confirmed-display {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 22px 14px;
+    }
+    .cd-left { }
+    .cd-num  { font-size: 42px; font-weight: 800; color: #1a4a1a; line-height: 1; }
+    .cd-diff { font-size: 13px; font-weight: 700; margin-top: 3px; }
+    .cd-edit-btn {
+      padding: 7px 16px; border-radius: 20px;
+      border: 2px solid #2d6e2d; background: white;
+      color: #2d6e2d; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.18s;
+    }
+    .cd-edit-btn:hover { background: #f0f9f0; }
+
+    .hole-next-btn {
+      width: 100%; padding: 11px 0; border: none;
+      background: #2d6e2d; color: white;
+      font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
+      cursor: pointer; transition: background 0.18s;
+    }
+    .hole-next-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .hole-next-btn:hover:not(:disabled) { background: #1a4a1a; }
+
     /* EDIT MODAL */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
@@ -395,7 +425,7 @@
       </div>
     </div>
 
-    <div class="result-box">
+    <div class="result-box" id="resultBox" style="display:none">
       <div class="result-label">RESULT</div>
       <div class="result-value" id="resultValue">−</div>
       <div class="result-sub"  id="resultSub"></div>
@@ -403,7 +433,7 @@
 
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="resetScores()">リセット</button>
-      <button class="btn btn-primary" id="saveBtn" onclick="saveScore()">保存する</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveScore()" disabled>保存する</button>
     </div>
     <div class="date-now" id="dateNow"></div>
   </div>
@@ -488,6 +518,7 @@ let players = ['パパ', '佳奈'];
 let selectedPlayer = players[0];
 let addingPlayer = false;
 let scoreValues = {};   // { 1: null, 2: null, 3: null }
+let holeStates  = {};   // { 1: 'active'|'inactive'|'confirmed' }
 let filterPlayer = 'ALL';
 let selectedMonth = 'ALL';
 let allRecords = [];
@@ -624,58 +655,122 @@ async function confirmAddPlayer() {
 
 /* ===== SCORE CARDS ===== */
 function buildScoreCards() {
-  const wrap = document.getElementById('scoreCards');
-  wrap.innerHTML = '';
   HOLES.forEach(h => {
     scoreValues[h.hole] = null;
-    const card = document.createElement('div');
-    card.className = 'hole-card';
-    card.id = `hole-card-${h.hole}`;
-    card.innerHTML = `
-      <div class="hole-card-header">
-        <span class="hc-hole">HOLE ${h.hole}</span>
-        <span class="hc-par">PAR ${h.par}</span>
-      </div>
-      <div class="hole-card-body">
-        <button class="hc-btn" onclick="changeScore(${h.hole}, -1)">－</button>
-        <div class="hc-center">
-          <div class="hc-score-num empty" id="score-num-${h.hole}">−</div>
-          <div class="hc-score-diff" id="score-diff-${h.hole}"></div>
-        </div>
-        <button class="hc-btn" onclick="changeScore(${h.hole}, 1)">＋</button>
-      </div>`;
-    wrap.appendChild(card);
+    holeStates[h.hole]  = h.hole === 1 ? 'active' : 'inactive';
   });
-}
-
-function changeScore(hole, delta) {
-  const h = HOLES.find(hh => hh.hole === hole);
-  if (scoreValues[hole] === null) {
-    scoreValues[hole] = h.par;          // 最初のタップはPARからスタート
-  } else {
-    scoreValues[hole] = Math.max(1, Math.min(20, scoreValues[hole] + delta));
-  }
-  updateScoreDisplay(hole);
+  _renderAllCards();
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('saveBtn').disabled = true;
   updateTotals();
 }
 
-function updateScoreDisplay(hole) {
-  const h    = HOLES.find(hh => hh.hole === hole);
-  const v    = scoreValues[hole];
-  const numEl  = document.getElementById(`score-num-${hole}`);
-  const diffEl = document.getElementById(`score-diff-${hole}`);
-  const card   = document.getElementById(`hole-card-${hole}`);
-  if (v === null) {
-    numEl.textContent = '−'; numEl.className = 'hc-score-num empty';
-    diffEl.textContent = ''; diffEl.className = 'hc-score-diff';
-    card.classList.remove('has-score');
-  } else {
-    numEl.textContent = v; numEl.className = 'hc-score-num';
+function _renderAllCards() {
+  const wrap = document.getElementById('scoreCards');
+  wrap.innerHTML = '';
+  HOLES.forEach(h => _renderOneCard(h.hole, wrap));
+}
+
+function _renderOneCard(hole, wrap) {
+  const h     = HOLES.find(hh => hh.hole === hole);
+  const state = holeStates[hole];
+  const v     = scoreValues[hole];
+  const card  = document.createElement('div');
+  card.id = `hole-card-${hole}`;
+  card.className = `hole-card ${state}`;
+
+  const header = `<div class="hole-card-header">
+    <span class="hc-hole">HOLE ${hole}</span>
+    <span class="hc-par">PAR ${h.par}</span>
+  </div>`;
+
+  if (state === 'confirmed') {
     const d  = v - h.par;
     const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
-    diffEl.textContent = dl; diffEl.className = 'hc-score-diff ' + diffClass(d);
-    card.classList.add('has-score');
+    card.innerHTML = header + `
+      <div class="confirmed-display">
+        <div class="cd-left">
+          <div class="cd-num">${v}打</div>
+          <div class="cd-diff ${diffClass(d)}">${dl}</div>
+        </div>
+        <button class="cd-edit-btn" onclick="editHole(${hole})">✏️ 修正</button>
+      </div>`;
+
+  } else if (state === 'active') {
+    const empty   = v === null;
+    const numTxt  = empty ? '−' : String(v);
+    const numCls  = empty ? 'hc-score-num empty' : 'hc-score-num';
+    const d       = empty ? null : v - h.par;
+    const dl      = empty ? '' : (d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`));
+    const dfCls   = empty ? '' : diffClass(d);
+    const isLast  = hole === HOLES[HOLES.length - 1].hole;
+    const btnLbl  = isLast ? '確認する ✓' : '次のホールへ →';
+    card.innerHTML = header + `
+      <div class="hole-card-body">
+        <button class="hc-btn" onclick="changeScore(${hole}, -1)">－</button>
+        <div class="hc-center">
+          <div class="${numCls}" id="score-num-${hole}">${numTxt}</div>
+          <div class="hc-score-diff ${dfCls}" id="score-diff-${hole}">${dl}</div>
+        </div>
+        <button class="hc-btn" onclick="changeScore(${hole}, 1)">＋</button>
+      </div>
+      <button class="hole-next-btn" id="next-btn-${hole}"
+              onclick="confirmHole(${hole})" ${empty ? 'disabled' : ''}>${btnLbl}</button>`;
+
+  } else { // inactive
+    card.innerHTML = header + `
+      <div class="hole-card-body" style="justify-content:center;padding:10px 20px;">
+        <span style="color:#ccc;font-size:13px;font-weight:600;">入力待ち</span>
+      </div>`;
   }
+
+  wrap.appendChild(card);
+}
+
+function confirmHole(hole) {
+  if (scoreValues[hole] === null) return;
+  holeStates[hole] = 'confirmed';
+  const next = hole + 1;
+  if (next <= HOLES[HOLES.length - 1].hole) holeStates[next] = 'active';
+  _renderAllCards();
+  updateTotals();
+  if (HOLES.every(h => holeStates[h.hole] === 'confirmed')) {
+    document.getElementById('resultBox').style.display = 'block';
+    document.getElementById('saveBtn').disabled = false;
+  }
+}
+
+function editHole(hole) {
+  holeStates[hole] = 'active';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('saveBtn').disabled = true;
+  _renderAllCards();
+  updateTotals();
+}
+
+function changeScore(hole, delta) {
+  if (holeStates[hole] !== 'active') return;
+  const h = HOLES.find(hh => hh.hole === hole);
+  if (scoreValues[hole] === null) {
+    scoreValues[hole] = h.par;
+  } else {
+    scoreValues[hole] = Math.max(1, Math.min(20, scoreValues[hole] + delta));
+  }
+  // update just the active card's display in-place
+  const v      = scoreValues[hole];
+  const numEl  = document.getElementById(`score-num-${hole}`);
+  const diffEl = document.getElementById(`score-diff-${hole}`);
+  const nextBtn= document.getElementById(`next-btn-${hole}`);
+  if (numEl) {
+    numEl.textContent = v;
+    numEl.className   = 'hc-score-num';
+    const d  = v - h.par;
+    const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+    diffEl.textContent = dl;
+    diffEl.className   = 'hc-score-diff ' + diffClass(d);
+    if (nextBtn) nextBtn.disabled = false;
+  }
+  updateTotals();
 }
 
 function updateTotals() {
@@ -683,17 +778,20 @@ function updateTotals() {
   HOLES.forEach(h => { const v = scoreValues[h.hole]; if (v !== null) { total += v; filled++; } });
   const ts = document.getElementById('totalScore');
   const td = document.getElementById('totalDiff');
+  const allDone = HOLES.every(h => holeStates[h.hole] === 'confirmed');
   if (filled === 0) {
     ts.textContent = '−'; td.textContent = ''; td.className = ''; setResult('−', '');
-  } else if (filled === HOLES.length) {
+  } else if (filled === HOLES.length && allDone) {
     const d = total - TOTAL_PAR;
     ts.textContent = `${total}打`;
     td.textContent = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
-    td.className = 'st-diff ' + diffClass(d);
+    td.className   = 'st-diff ' + diffClass(d);
     setResult(total + '打', gradeText(d));
   } else {
-    ts.textContent = `${total}打`; td.textContent = `${filled}/${HOLES.length}H`; td.className = 'st-diff';
-    setResult(`${filled}/${HOLES.length} ホール`, `現在 ${total}打`);
+    ts.textContent = `${total}打`;
+    td.textContent = `${filled}/${HOLES.length}H`;
+    td.className   = 'st-diff';
+    setResult('−', '');
   }
 }
 
@@ -715,10 +813,16 @@ function setResult(val, sub) {
 
 /* ===== SAVE SCORE ===== */
 function resetScores() {
-  HOLES.forEach(h => { scoreValues[h.hole] = null; updateScoreDisplay(h.hole); });
+  HOLES.forEach(h => {
+    scoreValues[h.hole] = null;
+    holeStates[h.hole]  = h.hole === 1 ? 'active' : 'inactive';
+  });
+  _renderAllCards();
   document.getElementById('totalScore').textContent = '−';
-  document.getElementById('totalDiff').textContent = '';
-  document.getElementById('totalDiff').className = '';
+  document.getElementById('totalDiff').textContent  = '';
+  document.getElementById('totalDiff').className    = '';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('saveBtn').disabled = true;
   setResult('−', '');
 }
 
