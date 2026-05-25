@@ -237,6 +237,48 @@
     .stats-overall-card .soc-val   { font-size: 22px; font-weight: 800; color: #1a4a1a; margin: 2px 0; }
     .stats-overall-card .soc-sub   { font-size: 10px; color: #888; }
 
+    /* HOLE CARDS */
+    .hole-cards { display: flex; flex-direction: column; gap: 10px; }
+    .hole-card {
+      border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: border-color 0.2s;
+    }
+    .hole-card.has-score { border-color: #a5d6a7; }
+    .hole-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 20px; background: #f7f7f7;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .hc-hole { color: #1a4a1a; }
+    .hc-par  { color: #2d6e2d; }
+    .hole-card-body {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+    }
+    .hc-btn {
+      width: 58px; height: 58px; border-radius: 50%;
+      border: 2px solid #ddd; background: white;
+      font-size: 28px; line-height: 1; color: #555;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none; -webkit-user-select: none;
+    }
+    .hc-btn:hover  { border-color: #2d6e2d; color: #2d6e2d; background: #f0f9f0; }
+    .hc-btn:active { transform: scale(0.88); background: #e8f5e9; }
+    .hc-center { text-align: center; min-width: 100px; }
+    .hc-score-num { font-size: 52px; font-weight: 800; color: #1a4a1a; line-height: 1; }
+    .hc-score-num.empty { color: #ddd; font-size: 40px; }
+    .hc-score-diff { font-size: 14px; font-weight: 700; margin-top: 4px; min-height: 20px; }
+
+    .score-total {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; margin-top: 12px;
+      background: #f0f9f0; border-radius: 10px; border: 1px solid #c8e6c9;
+    }
+    .st-label { font-size: 13px; font-weight: 700; color: #1a4a1a; }
+    .st-right { display: flex; align-items: baseline; gap: 8px; }
+    .st-value { font-size: 24px; font-weight: 800; color: #1a4a1a; }
+    .st-diff  { font-size: 15px; font-weight: 700; }
+
     .month-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .month-chip {
       padding: 5px 12px; border-radius: 16px; border: 2px solid #ddd;
@@ -343,16 +385,14 @@
 
     <div class="section">
       <div class="section-label">スコア</div>
-      <table>
-        <thead><tr><th>HOLE</th><th>PAR</th><th>SCORE</th><th>+/−</th></tr></thead>
-        <tbody id="scoreBody"></tbody>
-        <tfoot>
-          <tr>
-            <td>合計</td><td id="totalPar">10</td>
-            <td id="totalScore">−</td><td id="totalDiff">−</td>
-          </tr>
-        </tfoot>
-      </table>
+      <div class="hole-cards" id="scoreCards"></div>
+      <div class="score-total">
+        <span class="st-label">合計 PAR <span id="totalPar">10</span></span>
+        <div class="st-right">
+          <span class="st-value" id="totalScore">−</span>
+          <span class="st-diff" id="totalDiff"></span>
+        </div>
+      </div>
     </div>
 
     <div class="result-box">
@@ -447,6 +487,7 @@ let db = null;
 let players = ['パパ', '佳奈'];
 let selectedPlayer = players[0];
 let addingPlayer = false;
+let scoreValues = {};   // { 1: null, 2: null, 3: null }
 let filterPlayer = 'ALL';
 let selectedMonth = 'ALL';
 let allRecords = [];
@@ -510,7 +551,7 @@ async function init() {
   }
   setStatus('loading', '接続中...');
   initFirebase();
-  buildScoreTable();
+  buildScoreCards();
   updateDateNow();
   setInterval(updateDateNow, 60000);
 
@@ -581,46 +622,77 @@ async function confirmAddPlayer() {
   renderPlayerChips();
 }
 
-/* ===== SCORE TABLE ===== */
-function buildScoreTable() {
-  const tbody = document.getElementById('scoreBody');
-  tbody.innerHTML = '';
+/* ===== SCORE CARDS ===== */
+function buildScoreCards() {
+  const wrap = document.getElementById('scoreCards');
+  wrap.innerHTML = '';
   HOLES.forEach(h => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${h.hole}</td>
-      <td class="par-cell">${h.par}</td>
-      <td><input class="score-input" type="number" min="1" max="20"
-           id="score${h.hole}" placeholder="−" oninput="updateTotals()"></td>
-      <td class="diff-cell" id="diff${h.hole}">−</td>`;
-    tbody.appendChild(tr);
+    scoreValues[h.hole] = null;
+    const card = document.createElement('div');
+    card.className = 'hole-card';
+    card.id = `hole-card-${h.hole}`;
+    card.innerHTML = `
+      <div class="hole-card-header">
+        <span class="hc-hole">HOLE ${h.hole}</span>
+        <span class="hc-par">PAR ${h.par}</span>
+      </div>
+      <div class="hole-card-body">
+        <button class="hc-btn" onclick="changeScore(${h.hole}, -1)">－</button>
+        <div class="hc-center">
+          <div class="hc-score-num empty" id="score-num-${h.hole}">−</div>
+          <div class="hc-score-diff" id="score-diff-${h.hole}"></div>
+        </div>
+        <button class="hc-btn" onclick="changeScore(${h.hole}, 1)">＋</button>
+      </div>`;
+    wrap.appendChild(card);
   });
+}
+
+function changeScore(hole, delta) {
+  const h = HOLES.find(hh => hh.hole === hole);
+  if (scoreValues[hole] === null) {
+    scoreValues[hole] = h.par;          // 最初のタップはPARからスタート
+  } else {
+    scoreValues[hole] = Math.max(1, Math.min(20, scoreValues[hole] + delta));
+  }
+  updateScoreDisplay(hole);
+  updateTotals();
+}
+
+function updateScoreDisplay(hole) {
+  const h    = HOLES.find(hh => hh.hole === hole);
+  const v    = scoreValues[hole];
+  const numEl  = document.getElementById(`score-num-${hole}`);
+  const diffEl = document.getElementById(`score-diff-${hole}`);
+  const card   = document.getElementById(`hole-card-${hole}`);
+  if (v === null) {
+    numEl.textContent = '−'; numEl.className = 'hc-score-num empty';
+    diffEl.textContent = ''; diffEl.className = 'hc-score-diff';
+    card.classList.remove('has-score');
+  } else {
+    numEl.textContent = v; numEl.className = 'hc-score-num';
+    const d  = v - h.par;
+    const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+    diffEl.textContent = dl; diffEl.className = 'hc-score-diff ' + diffClass(d);
+    card.classList.add('has-score');
+  }
 }
 
 function updateTotals() {
   let total = 0, filled = 0;
-  HOLES.forEach(h => {
-    const v = parseInt(document.getElementById(`score${h.hole}`).value);
-    const cell = document.getElementById(`diff${h.hole}`);
-    if (!isNaN(v) && v > 0) {
-      const d = v - h.par;
-      cell.textContent = d === 0 ? 'E' : (d > 0 ? `+${d}` : `${d}`);
-      cell.className = 'diff-cell ' + diffClass(d);
-      total += v; filled++;
-    } else { cell.textContent = '−'; cell.className = 'diff-cell'; }
-  });
+  HOLES.forEach(h => { const v = scoreValues[h.hole]; if (v !== null) { total += v; filled++; } });
   const ts = document.getElementById('totalScore');
   const td = document.getElementById('totalDiff');
   if (filled === 0) {
-    ts.textContent = '−'; td.textContent = '−'; td.className = ''; setResult('−', '');
+    ts.textContent = '−'; td.textContent = ''; td.className = ''; setResult('−', '');
   } else if (filled === HOLES.length) {
     const d = total - TOTAL_PAR;
-    ts.textContent = total;
+    ts.textContent = `${total}打`;
     td.textContent = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
-    td.className = diffClass(d);
+    td.className = 'st-diff ' + diffClass(d);
     setResult(total + '打', gradeText(d));
   } else {
-    ts.textContent = total; td.textContent = '−'; td.className = '';
+    ts.textContent = `${total}打`; td.textContent = `${filled}/${HOLES.length}H`; td.className = 'st-diff';
     setResult(`${filled}/${HOLES.length} ホール`, `現在 ${total}打`);
   }
 }
@@ -643,21 +715,17 @@ function setResult(val, sub) {
 
 /* ===== SAVE SCORE ===== */
 function resetScores() {
-  HOLES.forEach(h => {
-    document.getElementById(`score${h.hole}`).value = '';
-    const c = document.getElementById(`diff${h.hole}`);
-    c.textContent = '−'; c.className = 'diff-cell';
-  });
+  HOLES.forEach(h => { scoreValues[h.hole] = null; updateScoreDisplay(h.hole); });
   document.getElementById('totalScore').textContent = '−';
-  document.getElementById('totalDiff').textContent = '−';
+  document.getElementById('totalDiff').textContent = '';
   document.getElementById('totalDiff').className = '';
   setResult('−', '');
 }
 
 async function saveScore() {
   if (!selectedPlayer) { alert('プレイヤーを選択してください。'); return; }
-  const scores = HOLES.map(h => parseInt(document.getElementById(`score${h.hole}`).value));
-  if (scores.some(s => isNaN(s) || s < 1)) { alert('全ホールのスコアを入力してください。'); return; }
+  const scores = HOLES.map(h => scoreValues[h.hole]);
+  if (scores.some(s => s === null || s < 1)) { alert('全ホールのスコアを入力してください。'); return; }
   const total = scores.reduce((a, b) => a + b, 0);
   const diff  = total - TOTAL_PAR;
   const btn = document.getElementById('saveBtn');
