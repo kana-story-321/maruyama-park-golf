@@ -77,11 +77,12 @@
     .chip {
       padding: 7px 16px; border-radius: 20px; border: 2px solid #ddd;
       background: white; font-size: 14px; font-weight: 600; color: #555;
-      cursor: pointer; transition: all 0.2s;
+      cursor: default; transition: all 0.2s;
     }
     .chip.selected { background: #2d6e2d; border-color: #2d6e2d; color: white; }
-    .chip.add-chip { border-style: dashed; color: #2d6e2d; border-color: #2d6e2d; }
+    .chip.add-chip { border-style: dashed; color: #2d6e2d; border-color: #2d6e2d; cursor: pointer; }
     .chip.add-chip:hover { background: #f0f9f0; }
+    .modal-player-chips .chip { cursor: pointer; }
     .add-player-row { display: none; gap: 8px; margin-top: 10px; }
     .add-player-row.show { display: flex; }
     .add-player-row input {
@@ -94,39 +95,18 @@
       background: #2d6e2d; color: white; font-weight: 700; cursor: pointer; font-size: 13px;
     }
 
-    /* SCORECARD */
-    table { width: 100%; border-collapse: collapse; font-size: 15px; }
-    thead th {
-      padding: 9px 6px; text-align: center; font-size: 11px; font-weight: 700;
-      color: #888; background: #f7f7f7; border-bottom: 2px solid #ddd; letter-spacing: 0.5px;
-    }
-    tbody tr { border-bottom: 1px solid #eee; }
-    tbody tr:hover { background: #fafff9; }
-    tbody td { padding: 11px 6px; text-align: center; color: #333; font-weight: 500; }
-    tbody td:first-child { font-weight: 800; color: #1a4a1a; font-size: 16px; }
-    .par-cell { color: #2d6e2d; font-weight: 700; }
-    .score-input {
-      width: 58px; padding: 7px 4px; border: 2px solid #ddd; border-radius: 8px;
-      font-size: 16px; font-weight: 700; text-align: center; transition: all 0.2s;
-    }
-    .score-input:focus { outline: none; border-color: #2d6e2d; background: #f0f9f0; }
-    .diff-cell { font-weight: 700; }
+    /* DIFF COLORS (used in hole badges and stats) */
     .diff-under { color: #e74c3c; }
     .diff-over  { color: #2980b9; }
     .diff-even  { color: #888; }
-    tfoot td {
-      padding: 12px 6px; text-align: center; font-weight: 800; font-size: 14px;
-      color: #1a4a1a; background: #f0f9f0; border-top: 2px solid #2d6e2d;
-    }
+    .par-cell   { color: #2d6e2d; font-weight: 700; }
 
     /* RESULT */
     .result-box {
-      margin: 0 22px 18px; padding: 14px; border-radius: 12px;
-      background: #f5f5f5; text-align: center;
+      margin: 0 22px 18px; padding: 14px 18px; border-radius: 12px;
+      background: #f5f5f5;
     }
-    .result-label { font-size: 11px; color: #aaa; font-weight: 700; letter-spacing: 0.5px; }
-    .result-value { font-size: 30px; font-weight: 800; color: #1a4a1a; margin: 2px 0; }
-    .result-sub   { font-size: 14px; color: #555; font-weight: 600; }
+    .result-label { font-size: 11px; color: #aaa; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; }
 
     .btn-row { display: flex; gap: 10px; padding: 0 22px 20px; }
     .btn {
@@ -514,8 +494,8 @@ let db = null;
 let players = ['パパ', '佳奈'];
 let selectedPlayer = players[0];
 let addingPlayer = false;
-let scoreValues = {};   // { 1: null, 2: null, 3: null }
-let holeStates  = {};   // { 1: 'active'|'inactive'|'confirmed' }
+let scoreValues = {};   // { hole: { playerName: score|null } }
+let holeStates  = {};   // { hole: 'active'|'inactive'|'confirmed' }
 let filterPlayer = 'ALL';
 let selectedMonth = 'ALL';
 let allRecords = [];
@@ -886,9 +866,13 @@ async function saveScore() {
       return `${p}：${total}打（${diff >= 0 ? '+' : ''}${diff}）`;
     }).join('\n');
     alert(`✅ 保存しました！\n${summary}`);
-    resetScores();
-  } catch { alert('保存に失敗しました。通信を確認してください。'); }
-  finally { btn.disabled = false; btn.textContent = '保存する'; }
+    resetScores(); // ← ここで saveBtn.disabled = true になる（意図通り）
+  } catch {
+    // 保存失敗時のみボタンを再度有効化
+    alert('保存に失敗しました。通信を確認してください。');
+    btn.disabled = false;
+    btn.textContent = '保存する';
+  }
 }
 
 /* ===== STATS ===== */
