@@ -242,42 +242,67 @@
     .hole-card {
       border: 2px solid #eee; border-radius: 12px; overflow: hidden; transition: border-color 0.2s;
     }
-    .hole-card.has-score { border-color: #a5d6a7; }
     .hole-card-header {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 20px; background: #f7f7f7;
+      padding: 8px 16px 8px 20px; background: #f7f7f7;
       font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
     }
     .hc-hole { color: #1a4a1a; }
     .hc-par  { color: #2d6e2d; }
-    .hole-card-body {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px;
+
+    /* Player row inside active hole card */
+    .player-score-row {
+      display: flex; align-items: center;
+      padding: 10px 16px 10px 20px; border-top: 1px solid #f0f0f0; gap: 10px;
     }
-    .hc-btn {
-      width: 58px; height: 58px; border-radius: 50%;
+    .psr-name { flex: 1; font-size: 15px; font-weight: 700; color: #1a4a1a; }
+    .psr-controls { display: flex; align-items: center; gap: 10px; }
+    .hc-btn-sm {
+      width: 42px; height: 42px; border-radius: 50%;
       border: 2px solid #ddd; background: white;
-      font-size: 28px; line-height: 1; color: #555;
+      font-size: 22px; line-height: 1; color: #555;
       cursor: pointer; transition: all 0.15s;
       display: flex; align-items: center; justify-content: center;
       user-select: none; -webkit-user-select: none;
     }
-    .hc-btn:hover  { border-color: #2d6e2d; color: #2d6e2d; background: #f0f9f0; }
-    .hc-btn:active { transform: scale(0.88); background: #e8f5e9; }
-    .hc-center { text-align: center; min-width: 100px; }
-    .hc-score-num { font-size: 52px; font-weight: 800; color: #1a4a1a; line-height: 1; }
-    .hc-score-num.empty { color: #ddd; font-size: 40px; }
-    .hc-score-diff { font-size: 14px; font-weight: 700; margin-top: 4px; min-height: 20px; }
+    .hc-btn-sm:hover  { border-color: #2d6e2d; color: #2d6e2d; background: #f0f9f0; }
+    .hc-btn-sm:active { transform: scale(0.88); }
+    .psr-num { font-size: 34px; font-weight: 800; color: #1a4a1a; min-width: 48px; text-align: center; line-height: 1; }
+    .psr-num.empty { color: #ccc; font-size: 26px; }
+    .psr-diff { font-size: 12px; font-weight: 700; min-width: 38px; text-align: center; }
 
-    .score-total {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 20px; margin-top: 12px;
-      background: #f0f9f0; border-radius: 10px; border: 1px solid #c8e6c9;
+    /* Confirmed hole card */
+    .hole-card.confirmed { border-color: #a5d6a7; }
+    .confirmed-rows { padding: 2px 0 8px; }
+    .conf-player-row {
+      display: flex; align-items: center;
+      padding: 7px 20px; border-top: 1px solid #f5f5f5; gap: 8px;
     }
-    .st-label { font-size: 13px; font-weight: 700; color: #1a4a1a; }
-    .st-right { display: flex; align-items: baseline; gap: 8px; }
-    .st-value { font-size: 24px; font-weight: 800; color: #1a4a1a; }
-    .st-diff  { font-size: 15px; font-weight: 700; }
+    .cpr-name  { flex: 1; font-size: 14px; font-weight: 700; color: #333; }
+    .cpr-score { font-size: 22px; font-weight: 800; color: #1a4a1a; min-width: 52px; text-align: right; }
+    .cpr-diff  { font-size: 12px; font-weight: 700; min-width: 44px; text-align: right; }
+    .cd-edit-btn-hdr {
+      padding: 4px 10px; border-radius: 14px;
+      border: 1px solid #b2d8b2; background: white;
+      color: #2d6e2d; font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all 0.18s;
+    }
+    .cd-edit-btn-hdr:hover { background: #f0f9f0; }
+
+    /* Inactive hole card */
+    .hole-card.inactive { opacity: 0.38; pointer-events: none; }
+
+    /* Player totals area */
+    .player-totals { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+    .player-total-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: #f0f9f0;
+      border-radius: 10px; border: 1px solid #c8e6c9;
+    }
+    .ptr-name  { font-size: 14px; font-weight: 700; color: #1a4a1a; }
+    .ptr-right { display: flex; align-items: baseline; gap: 8px; }
+    .ptr-score { font-size: 22px; font-weight: 800; color: #1a4a1a; }
+    .ptr-diff  { font-size: 14px; font-weight: 700; }
 
     .month-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .month-chip {
@@ -291,27 +316,6 @@
       background: white; border-radius: 8px; padding: 8px 10px;
       border: 1px solid #e0f0e0; margin-top: 4px;
     }
-
-    /* HOLE CARD STATES */
-    .hole-card.inactive { opacity: 0.38; pointer-events: none; }
-    .hole-card.inactive .hole-card-body { display: flex; justify-content: center; padding: 10px 20px; }
-    .hole-card.confirmed { border-color: #a5d6a7; }
-    .hole-card.confirmed .hole-card-body { display: none; }
-
-    .confirmed-display {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 22px 14px;
-    }
-    .cd-left { }
-    .cd-num  { font-size: 42px; font-weight: 800; color: #1a4a1a; line-height: 1; }
-    .cd-diff { font-size: 13px; font-weight: 700; margin-top: 3px; }
-    .cd-edit-btn {
-      padding: 7px 16px; border-radius: 20px;
-      border: 2px solid #2d6e2d; background: white;
-      color: #2d6e2d; font-size: 13px; font-weight: 700;
-      cursor: pointer; transition: all 0.18s;
-    }
-    .cd-edit-btn:hover { background: #f0f9f0; }
 
     .hole-next-btn {
       width: 100%; padding: 11px 0; border: none;
@@ -404,7 +408,7 @@
   <!-- SCORE PAGE -->
   <div class="page" id="page-score">
     <div class="section">
-      <div class="section-label">プレイヤー</div>
+      <div class="section-label">参加プレイヤー</div>
       <div class="player-chips" id="playerChips"></div>
       <div class="add-player-row" id="addPlayerRow">
         <input type="text" id="newPlayerInput" placeholder="新しい名前" maxlength="12"
@@ -414,21 +418,14 @@
     </div>
 
     <div class="section">
-      <div class="section-label">スコア</div>
+      <div class="section-label">スコア入力</div>
       <div class="hole-cards" id="scoreCards"></div>
-      <div class="score-total">
-        <span class="st-label">合計 PAR <span id="totalPar">10</span></span>
-        <div class="st-right">
-          <span class="st-value" id="totalScore">−</span>
-          <span class="st-diff" id="totalDiff"></span>
-        </div>
-      </div>
+      <div id="playerTotals" class="player-totals"></div>
     </div>
 
     <div class="result-box" id="resultBox" style="display:none">
       <div class="result-label">RESULT</div>
-      <div class="result-value" id="resultValue">−</div>
-      <div class="result-sub"  id="resultSub"></div>
+      <div id="resultContent"></div>
     </div>
 
     <div class="btn-row">
@@ -582,7 +579,6 @@ async function init() {
   }
   setStatus('loading', '接続中...');
   initFirebase();
-  buildScoreCards();
   updateDateNow();
   setInterval(updateDateNow, 60000);
 
@@ -590,6 +586,7 @@ async function init() {
     players = await loadPlayers();
     selectedPlayer = players[0] || null;
     renderPlayerChips();
+    buildScoreCards(); // players確定後に構築
     showPage('score');
     setStatus('online', 'オンライン');
   } catch {
@@ -617,10 +614,9 @@ function renderPlayerChips() {
   const wrap = document.getElementById('playerChips');
   wrap.innerHTML = '';
   players.forEach(name => {
-    const chip = document.createElement('button');
-    chip.className = 'chip' + (name === selectedPlayer ? ' selected' : '');
+    const chip = document.createElement('div');
+    chip.className = 'chip selected';
     chip.textContent = name;
-    chip.onclick = () => { selectedPlayer = name; renderPlayerChips(); };
     wrap.appendChild(chip);
   });
   const addBtn = document.createElement('button');
@@ -647,22 +643,24 @@ async function confirmAddPlayer() {
   if (players.includes(name)) { alert('同じ名前がすでに存在します。'); return; }
   players.push(name);
   await persistPlayers(players);
-  selectedPlayer = name;
   addingPlayer = false;
   document.getElementById('addPlayerRow').classList.remove('show');
   renderPlayerChips();
+  buildScoreCards(); // プレイヤーが変わったらカードを再構築
 }
 
 /* ===== SCORE CARDS ===== */
+// scoreValues = { hole: { playerName: score|null } }
 function buildScoreCards() {
   HOLES.forEach(h => {
-    scoreValues[h.hole] = null;
-    holeStates[h.hole]  = h.hole === 1 ? 'active' : 'inactive';
+    scoreValues[h.hole] = {};
+    players.forEach(p => { scoreValues[h.hole][p] = null; });
+    holeStates[h.hole] = h.hole === 1 ? 'active' : 'inactive';
   });
   _renderAllCards();
+  document.getElementById('playerTotals').innerHTML = '';
   document.getElementById('resultBox').style.display = 'none';
   document.getElementById('saveBtn').disabled = true;
-  updateTotals();
 }
 
 function _renderAllCards() {
@@ -671,70 +669,114 @@ function _renderAllCards() {
   HOLES.forEach(h => _renderOneCard(h.hole, wrap));
 }
 
-function _renderOneCard(hole, wrap) {
+function _renderOneCard(hole, container) {
   const h     = HOLES.find(hh => hh.hole === hole);
   const state = holeStates[hole];
-  const v     = scoreValues[hole];
   const card  = document.createElement('div');
   card.id = `hole-card-${hole}`;
   card.className = `hole-card ${state}`;
 
-  const header = `<div class="hole-card-header">
-    <span class="hc-hole">HOLE ${hole}</span>
-    <span class="hc-par">PAR ${h.par}</span>
-  </div>`;
-
   if (state === 'confirmed') {
-    const d  = v - h.par;
-    const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
-    card.innerHTML = header + `
-      <div class="confirmed-display">
-        <div class="cd-left">
-          <div class="cd-num">${v}打</div>
-          <div class="cd-diff ${diffClass(d)}">${dl}</div>
-        </div>
-        <button class="cd-edit-btn" onclick="editHole(${hole})">✏️ 修正</button>
+    let rowsHtml = '';
+    players.forEach(p => {
+      const v  = scoreValues[hole][p];
+      const d  = v - h.par;
+      const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+      rowsHtml += `<div class="conf-player-row">
+        <span class="cpr-name">${p}</span>
+        <span class="cpr-score">${v}打</span>
+        <span class="cpr-diff ${diffClass(d)}">${dl}</span>
       </div>`;
+    });
+    card.innerHTML = `
+      <div class="hole-card-header">
+        <span class="hc-hole">HOLE ${hole}</span>
+        <span class="hc-par">PAR ${h.par}</span>
+        <button class="cd-edit-btn-hdr" onclick="editHole(${hole})">✏️ 修正</button>
+      </div>
+      <div class="confirmed-rows">${rowsHtml}</div>`;
 
   } else if (state === 'active') {
-    const empty   = v === null;
-    const numTxt  = empty ? '−' : String(v);
-    const numCls  = empty ? 'hc-score-num empty' : 'hc-score-num';
-    const d       = empty ? null : v - h.par;
-    const dl      = empty ? '' : (d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`));
-    const dfCls   = empty ? '' : diffClass(d);
-    const isLast  = hole === HOLES[HOLES.length - 1].hole;
-    const btnLbl  = isLast ? '確認する ✓' : '次のホールへ →';
-    card.innerHTML = header + `
-      <div class="hole-card-body">
-        <button class="hc-btn" onclick="changeScore(${hole}, -1)">－</button>
-        <div class="hc-center">
-          <div class="${numCls}" id="score-num-${hole}">${numTxt}</div>
-          <div class="hc-score-diff ${dfCls}" id="score-diff-${hole}">${dl}</div>
+    let playerRowsHtml = '';
+    players.forEach((p, pIdx) => {
+      const v     = scoreValues[hole][p];
+      const empty = v === null;
+      const numTxt = empty ? '−' : String(v);
+      const numCls = empty ? 'psr-num empty' : 'psr-num';
+      const d      = empty ? null : v - h.par;
+      const dl     = empty ? '' : (d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`));
+      const dfCls  = empty ? '' : diffClass(d);
+      playerRowsHtml += `<div class="player-score-row">
+        <div class="psr-name">${p}</div>
+        <div class="psr-controls">
+          <button class="hc-btn-sm" onclick="changeScore(${hole},${pIdx},-1)">－</button>
+          <div style="text-align:center;min-width:52px">
+            <div class="${numCls}" id="sn-${hole}-${pIdx}">${numTxt}</div>
+            <div class="psr-diff ${dfCls}" id="sd-${hole}-${pIdx}">${dl}</div>
+          </div>
+          <button class="hc-btn-sm" onclick="changeScore(${hole},${pIdx},1)">＋</button>
         </div>
-        <button class="hc-btn" onclick="changeScore(${hole}, 1)">＋</button>
+      </div>`;
+    });
+    const allFilled = players.every(p => scoreValues[hole][p] !== null);
+    const isLast    = hole === HOLES[HOLES.length - 1].hole;
+    const btnLbl    = isLast ? '確認する ✓' : '次のホールへ →';
+    card.innerHTML = `
+      <div class="hole-card-header">
+        <span class="hc-hole">HOLE ${hole}</span>
+        <span class="hc-par">PAR ${h.par}</span>
       </div>
+      ${playerRowsHtml}
       <button class="hole-next-btn" id="next-btn-${hole}"
-              onclick="confirmHole(${hole})" ${empty ? 'disabled' : ''}>${btnLbl}</button>`;
+              onclick="confirmHole(${hole})" ${allFilled ? '' : 'disabled'}>${btnLbl}</button>`;
 
   } else { // inactive
-    card.innerHTML = header + `
-      <div class="hole-card-body" style="justify-content:center;padding:10px 20px;">
-        <span style="color:#ccc;font-size:13px;font-weight:600;">入力待ち</span>
-      </div>`;
+    card.innerHTML = `
+      <div class="hole-card-header">
+        <span class="hc-hole">HOLE ${hole}</span>
+        <span class="hc-par">PAR ${h.par}</span>
+      </div>
+      <div style="padding:10px 20px;text-align:center;color:#ccc;font-size:13px;font-weight:600;">入力待ち</div>`;
   }
 
-  wrap.appendChild(card);
+  (container || document.getElementById('scoreCards')).appendChild(card);
+}
+
+function changeScore(hole, pIdx, delta) {
+  if (holeStates[hole] !== 'active') return;
+  const h = HOLES.find(hh => hh.hole === hole);
+  const p = players[pIdx];
+  if (scoreValues[hole][p] === null) {
+    scoreValues[hole][p] = h.par;
+  } else {
+    scoreValues[hole][p] = Math.max(1, Math.min(20, scoreValues[hole][p] + delta));
+  }
+  const v = scoreValues[hole][p];
+  const numEl  = document.getElementById(`sn-${hole}-${pIdx}`);
+  const diffEl = document.getElementById(`sd-${hole}-${pIdx}`);
+  if (numEl) {
+    numEl.textContent = v;
+    numEl.className   = 'psr-num';
+    const d  = v - h.par;
+    const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+    diffEl.textContent = dl;
+    diffEl.className   = 'psr-diff ' + diffClass(d);
+  }
+  const allFilled = players.every(pp => scoreValues[hole][pp] !== null);
+  const nextBtn = document.getElementById(`next-btn-${hole}`);
+  if (nextBtn) nextBtn.disabled = !allFilled;
+  updateTotals();
 }
 
 function confirmHole(hole) {
-  if (scoreValues[hole] === null) return;
+  if (!players.every(p => scoreValues[hole][p] !== null)) return;
   holeStates[hole] = 'confirmed';
   const next = hole + 1;
   if (next <= HOLES[HOLES.length - 1].hole) holeStates[next] = 'active';
   _renderAllCards();
   updateTotals();
   if (HOLES.every(h => holeStates[h.hole] === 'confirmed')) {
+    _showFinalResult();
     document.getElementById('resultBox').style.display = 'block';
     document.getElementById('saveBtn').disabled = false;
   }
@@ -748,51 +790,55 @@ function editHole(hole) {
   updateTotals();
 }
 
-function changeScore(hole, delta) {
-  if (holeStates[hole] !== 'active') return;
-  const h = HOLES.find(hh => hh.hole === hole);
-  if (scoreValues[hole] === null) {
-    scoreValues[hole] = h.par;
-  } else {
-    scoreValues[hole] = Math.max(1, Math.min(20, scoreValues[hole] + delta));
-  }
-  // update just the active card's display in-place
-  const v      = scoreValues[hole];
-  const numEl  = document.getElementById(`score-num-${hole}`);
-  const diffEl = document.getElementById(`score-diff-${hole}`);
-  const nextBtn= document.getElementById(`next-btn-${hole}`);
-  if (numEl) {
-    numEl.textContent = v;
-    numEl.className   = 'hc-score-num';
-    const d  = v - h.par;
-    const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
-    diffEl.textContent = dl;
-    diffEl.className   = 'hc-score-diff ' + diffClass(d);
-    if (nextBtn) nextBtn.disabled = false;
-  }
-  updateTotals();
+function updateTotals() {
+  const totalsDiv = document.getElementById('playerTotals');
+  totalsDiv.innerHTML = '';
+  const allDone = HOLES.every(h => holeStates[h.hole] === 'confirmed');
+  players.forEach(p => {
+    let total = 0, filled = 0;
+    HOLES.forEach(h => {
+      const v = (scoreValues[h.hole] || {})[p];
+      if (v != null) { total += v; filled++; }
+    });
+    if (filled === 0) return;
+    const row = document.createElement('div');
+    row.className = 'player-total-row';
+    if (allDone) {
+      const d  = total - TOTAL_PAR;
+      const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+      row.innerHTML = `<span class="ptr-name">${p}</span>
+        <div class="ptr-right">
+          <span class="ptr-score">${total}打</span>
+          <span class="ptr-diff ${diffClass(d)}">${dl}</span>
+        </div>`;
+    } else {
+      row.innerHTML = `<span class="ptr-name">${p}</span>
+        <div class="ptr-right">
+          <span class="ptr-score">${total}打</span>
+          <span class="ptr-diff" style="color:#aaa">${filled}/${HOLES.length}H</span>
+        </div>`;
+    }
+    totalsDiv.appendChild(row);
+  });
 }
 
-function updateTotals() {
-  let total = 0, filled = 0;
-  HOLES.forEach(h => { const v = scoreValues[h.hole]; if (v !== null) { total += v; filled++; } });
-  const ts = document.getElementById('totalScore');
-  const td = document.getElementById('totalDiff');
-  const allDone = HOLES.every(h => holeStates[h.hole] === 'confirmed');
-  if (filled === 0) {
-    ts.textContent = '−'; td.textContent = ''; td.className = ''; setResult('−', '');
-  } else if (filled === HOLES.length && allDone) {
-    const d = total - TOTAL_PAR;
-    ts.textContent = `${total}打`;
-    td.textContent = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
-    td.className   = 'st-diff ' + diffClass(d);
-    setResult(total + '打', gradeText(d));
-  } else {
-    ts.textContent = `${total}打`;
-    td.textContent = `${filled}/${HOLES.length}H`;
-    td.className   = 'st-diff';
-    setResult('−', '');
-  }
+function _showFinalResult() {
+  const content = document.getElementById('resultContent');
+  let html = '';
+  players.forEach(p => {
+    const total = HOLES.reduce((s, h) => s + scoreValues[h.hole][p], 0);
+    const d  = total - TOTAL_PAR;
+    const dl = d === 0 ? 'EVEN' : (d > 0 ? `+${d}` : `${d}`);
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin:5px 0;padding:4px 6px;border-bottom:1px solid rgba(0,0,0,0.06)">
+      <span style="font-size:14px;font-weight:700;color:#1a4a1a">${p}</span>
+      <span>
+        <span style="font-size:26px;font-weight:800;color:#1a4a1a">${total}打</span>
+        <span style="font-size:14px;font-weight:700;margin-left:6px" class="${diffClass(d)}">${dl}</span>
+      </span>
+    </div>
+    <div style="font-size:12px;color:#888;text-align:right;margin-bottom:4px">${gradeText(d)}</div>`;
+  });
+  content.innerHTML = html;
 }
 
 function diffClass(d)  { return d < 0 ? 'diff-under' : d > 0 ? 'diff-over' : 'diff-even'; }
@@ -806,37 +852,40 @@ function gradeText(d)  {
   if (d === 3)  return 'トリプルボギー';
   return `+${d}`;
 }
-function setResult(val, sub) {
-  document.getElementById('resultValue').textContent = val;
-  document.getElementById('resultSub').textContent = sub;
-}
 
 /* ===== SAVE SCORE ===== */
 function resetScores() {
   HOLES.forEach(h => {
-    scoreValues[h.hole] = null;
+    scoreValues[h.hole] = {};
+    players.forEach(p => { scoreValues[h.hole][p] = null; });
     holeStates[h.hole]  = h.hole === 1 ? 'active' : 'inactive';
   });
   _renderAllCards();
-  document.getElementById('totalScore').textContent = '−';
-  document.getElementById('totalDiff').textContent  = '';
-  document.getElementById('totalDiff').className    = '';
+  document.getElementById('playerTotals').innerHTML = '';
   document.getElementById('resultBox').style.display = 'none';
   document.getElementById('saveBtn').disabled = true;
-  setResult('−', '');
 }
 
 async function saveScore() {
-  if (!selectedPlayer) { alert('プレイヤーを選択してください。'); return; }
-  const scores = HOLES.map(h => scoreValues[h.hole]);
-  if (scores.some(s => s === null || s < 1)) { alert('全ホールのスコアを入力してください。'); return; }
-  const total = scores.reduce((a, b) => a + b, 0);
-  const diff  = total - TOTAL_PAR;
+  if (!HOLES.every(h => holeStates[h.hole] === 'confirmed')) {
+    alert('全ホールのスコアを入力してください。'); return;
+  }
   const btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '保存中...';
   try {
-    await addRecord({ player: selectedPlayer, date: new Date().toISOString(), scores, total, diff, grade: gradeText(diff) });
-    alert(`✅ 保存しました！\n${selectedPlayer}さん：${total}打（${diff >= 0 ? '+' : ''}${diff}）`);
+    const date = new Date().toISOString();
+    await Promise.all(players.map(p => {
+      const scores = HOLES.map(h => scoreValues[h.hole][p]);
+      const total  = scores.reduce((a, b) => a + b, 0);
+      const diff   = total - TOTAL_PAR;
+      return addRecord({ player: p, date, scores, total, diff, grade: gradeText(diff) });
+    }));
+    const summary = players.map(p => {
+      const total = HOLES.reduce((s, h) => s + scoreValues[h.hole][p], 0);
+      const diff  = total - TOTAL_PAR;
+      return `${p}：${total}打（${diff >= 0 ? '+' : ''}${diff}）`;
+    }).join('\n');
+    alert(`✅ 保存しました！\n${summary}`);
     resetScores();
   } catch { alert('保存に失敗しました。通信を確認してください。'); }
   finally { btn.disabled = false; btn.textContent = '保存する'; }
